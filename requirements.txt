@@ -1,0 +1,5 @@
+matplotlib~=3.10.7
+scipy~=1.16.3
+numpy~=2.3.4
+dataclasses~=0.1
+typing~=3.7.4.3
