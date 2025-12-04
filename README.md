@@ -7,11 +7,9 @@ the material and charge density (as well as the current density, respectively) c
 
 The procedure of deriving an FE setup (which shall cover more cases and be more user-friendly, perspectively) is 
 illustrated in the following example of the magnetic field caused by a current density, i.e.,
-$$
-\nabla \times \left(\frac{1}{\mu}\nabla \times \mathbf{A}\right) = \mathbf{J}, 
+$$\nabla \times \left(\frac{1}{\mu}\nabla \times \mathbf{A}\right) = \mathbf{J}, 
 \;\text{in}\; \Omega\subseteq\mathbb{R}^3, 
-\;\text{where}\; \mathbf{n}\times \mathbf{A} = \mathbf{0} \;\text{on}\;\partial \Omega.
-$$
+\;\text{where}\; \mathbf{n}\times \mathbf{A} = \mathbf{0} \;\text{on}\;\partial \Omega.$$
 In the partial differential equation above, $\mathbf{A}$ is the magnetic vector potential, $\mathbf{n}$ is normal to 
 the boundary, and $\mathbf{B} = \nabla \times \mathbf{A}$ is the magnetic flux density, while $\mathbf{J}$ is the applied 
 current density and $\mu$ is the permeability of the material. Both $\mathbf{J}$ and $\mu$ may depend on the location.
