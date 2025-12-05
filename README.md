@@ -97,13 +97,13 @@ A final remark for completeness: in their simplest form (triangles in 2D), the N
 
 $$
 \begin{pmatrix}
-1\\0
+1 \\ 0
 \end{pmatrix},\quad
 \begin{pmatrix}
-0\\1
+0 \\ 1
 \end{pmatrix},\quad
 \begin{pmatrix} 
--x\\y
+-x \\ y
 \end{pmatrix},
 $$
 
