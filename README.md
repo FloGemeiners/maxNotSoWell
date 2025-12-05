@@ -98,9 +98,9 @@ A final remark for completeness: in their simplest form (triangles in 2D), the N
 
 $$\begin{bmatrix}
 1 \\ 0
-\end{pmatrix},\quad\begin{bmatrix}
+\end{bmatrix},\quad\begin{bmatrix}
 0 \\ 1
-\end{pmatrix},\quad\begin{pmatrix} 
+\end{bmatrix},\quad\begin{pmatrix} 
 -x \\ y
 \end{pmatrix},
 $$
