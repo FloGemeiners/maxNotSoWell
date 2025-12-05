@@ -96,12 +96,12 @@ cast in closed form because element areas and volumes are available.
 
 A final remark for completeness: in their simplest form (triangles in 2D), the Nédélec elements use the basis functions
 
-$$\begin{bmatrix}
-1 \\ 0
-\end{bmatrix},\quad\begin{bmatrix}
-0 \\ 1
-\end{bmatrix},\quad\begin{pmatrix} 
--x \\ y
+$$\begin{pmatrix}
+1\\0
+\end{pmatrix},\quad\begin{pmatrix}
+0\\1
+\end{pmatrix},\quad\begin{pmatrix} 
+-x\\y
 \end{pmatrix},
 $$
 
