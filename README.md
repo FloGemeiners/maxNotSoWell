@@ -51,6 +51,7 @@ one rewrites the above as
 $$\int_{\partial\Omega} \mathbf{n}\cdot\bigl(\mathbf{w}\times(\mu^{-1}\nabla\times\mathbf{A})\bigr)\,\mathrm{d}V =
 \int_{\Omega} (\nabla\times\mathbf{w})\cdot(\mu^{-1}\nabla\times\mathbf{A})\,\mathrm{d}V -
 \int_{\Omega} \mathbf{w}\cdot\bigl(\nabla\times(\mu^{-1}\nabla\times\mathbf{A})\bigr)\,\mathrm{d}V,$$
+
 where $\mathbf{n}$ is normal to the boundary. This was obtained by invoking the divergence theorem, which replaces the 
 volume integral by a surface integral:
 
@@ -99,9 +100,11 @@ $$
 \begin{pmatrix}
 1 \\ 0
 \end{pmatrix},\quad
+
 \begin{pmatrix}
 0 \\ 1
 \end{pmatrix},\quad
+
 \begin{pmatrix} 
 -x \\ y
 \end{pmatrix},
