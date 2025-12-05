@@ -95,7 +95,8 @@ cast in closed form because element areas and volumes are available.
 
 A final remark for completeness: in their simplest form (triangles in 2D), the Nédélec elements use the basis functions
 
-$$\begin{pmatrix}
+$$
+\begin{pmatrix}
 1\\0
 \end{pmatrix},\quad
 \begin{pmatrix}
@@ -103,6 +104,7 @@ $$\begin{pmatrix}
 \end{pmatrix},\quad
 \begin{pmatrix} 
 -x\\y
-\end{pmatrix},$$
+\end{pmatrix},
+$$
 
 which are precisely the vector fields tangent to the triangle edges.
