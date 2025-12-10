@@ -5,6 +5,8 @@ As of right now (December 2025), the package only supports an explicit formulati
 Thereby, the classes built so far only allow for 2D-electrostatic and -magneto-quasi-static problems to be solved, but 
 the material and charge density (as well as the current density, respectively) can be specified via callables. 
 
+![Image subtitle](visualization_fem_setup.png)
+
 The procedure of deriving an FE setup (which shall cover more cases and be more user-friendly, perspectively) is 
 illustrated in the following example of the magnetic field caused by a current density, i.e.,
 
