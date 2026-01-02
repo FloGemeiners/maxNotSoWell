@@ -284,7 +284,7 @@ class NedelecFirstKindTriP1(FiniteElement):
 
     @property
     def space_type(self) -> str:
-        return "Hcurl"
+        return "H(curl)"
 
     @property
     def dim(self) -> int:
@@ -372,7 +372,8 @@ class NedelecFirstKindTriP1(FiniteElement):
         ref_vals = self.evaluate_reference_basis(ref_q_points)
         _, _, invJT, _ = self._compute_affine_jacobian(cell_vertices)
 
-        # Apply J^{-T} to the vector component (last axis)
+        # Use the Einstein summation convention to apply J^{-T} (inverse transposed Jacobian) to every basis vector at
+        # every quadrature point (which means left-multiplying by J^{-T}):
         # invJT: (2,2), ref_vals: (n_q,3,2) -> out: (n_q,3,2)
         vals = np.einsum("ij,qkj->qki", invJT, ref_vals)
         return vals

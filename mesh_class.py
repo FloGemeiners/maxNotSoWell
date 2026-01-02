@@ -39,6 +39,10 @@ class Mesh2DRect:
         number of steps in the x direction
     ny: int
         number of steps in the y direction
+    nodes: (n_nodes, 2) float
+        Node coordinates.
+    tris: (n_tris, 3) int
+        Triangles as triplets of node indices (counter-clockwise orientation).
     edges: (n_edges, 2) int
         Edges as pairs of node indices, stored with global orientation (min(node_i, node_j), max(node_i, node_j)).
     tri_edges: (n_tris, 3) int
@@ -80,7 +84,7 @@ class Mesh2DRect:
 
         Sets:
         -----------
-        edges, tri_edges, tri_edge_signs
+        nodes, edges, tris, tri_edges, tri_edge_signs
         """
         xs = np.linspace(self.xmin, self.xmax, self.nx + 1)
         ys = np.linspace(self.ymin, self.ymax, self.ny + 1)
@@ -216,9 +220,4 @@ class Mesh2DRect:
             mask = np.all(np.isclose(edge_y, self.ymax, atol=tol), axis=1)
             return np.where(mask)[0]
 
-        return {
-            "left": on_left(),
-            "right": on_right(),
-            "bottom": on_bottom(),
-            "top": on_top(),
-        }
+        return {"left": on_left(), "right": on_right(), "bottom": on_bottom(), "top": on_top(),}

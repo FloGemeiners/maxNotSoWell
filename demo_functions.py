@@ -82,3 +82,10 @@ def mat_inhomogeneous_mag(mu0 = 0.1, mu1 = 10.0, mu2 = 0.1, mu3 = 10.0, xsplit =
     # simple function realizing an inhomogeneous material distribution in the plane (division into 4 quadrants)
     return lambda x, y: mu0 if (x <= xsplit and y <= ysplit) else (mu1 if (x <= xsplit and y > ysplit) else
                                                                   (mu2 if (x > xsplit and y <= ysplit) else mu3))
+
+def j_inplane(x: float, y: float) -> tuple[float, float]:
+    # Simple example: constant Jx in some region
+    if 0.25 <= x <= 0.75 and 0.25 <= y <= 0.75:
+        return (1.0, 0.0)
+    else:
+        return (0.0, 0.0)

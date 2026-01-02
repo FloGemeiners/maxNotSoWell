@@ -5,7 +5,7 @@ Usage:
     python3 main.py or hit the play button
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated November 27, 2025
+    Florian Meiners - November 5, 2025; Last updated January 2, 2026
 
 Functions:
 -----------
@@ -28,9 +28,12 @@ from pydoc_data.topics import topics
 
 import matplotlib.pyplot as plt
 import demo_functions
+from demo_functions import j_inplane
+from finite_element_classes import *
 from electrostatics_class import *
 from magnetic_planar_class import *
 from mesh_class import *
+import matplotlib.tri as mtri
 
 plt.rcParams.update({'text.usetex':True,
                      'font.family':'Helvetica'})
@@ -55,8 +58,9 @@ def make_two_material_demo(mesh: Mesh2DRect, x_split: float = 0.6, eps_left: flo
     top_bc = DirichletBC(bnds["top"], lambda x, y: 0.0)
     bottom_bc = DirichletBC(bnds["bottom"], lambda x, y: 0.0)
 
-    prob = Electrostatics2D(nodes, tris, mat, src)
-    prob.assemble()
+    prob = Electrostatics2D(mesh, mat, src)
+    # prob.assemble()
+    prob.assemble_by_elements()
     prob.apply_dirichlet([left_bc, right_bc, top_bc, bottom_bc])
     phi = prob.solve()
     Ex, Ey, centers = prob.electric_field()
@@ -65,10 +69,10 @@ def make_two_material_demo(mesh: Mesh2DRect, x_split: float = 0.6, eps_left: flo
 
 def make_two_material_demo_magnetic(mesh: Mesh2DRect, x_split: float = 0.5,
                                     eps_left: float = 10.0, eps_right: float = 1.0,
-                                    current_function=None, mat_distribution=None):
+                                    current_function=j_inplane, mat_distribution=None):
     nodes, tris = mesh.build()
     mat = MaterialMu(mat_distribution if mat_distribution is not None
-                          else (lambda x, y: eps_left if x <= x_split else eps_right))
+                     else (lambda x, y: eps_left if x <= x_split else eps_right))
     src = CurrentDensity(current_function if current_function is not None else (lambda x, y: 0.0))
     bnds = mesh.boundary_nodes(nodes)
     left_bc = DirichletBCMagnetic(bnds["left"], lambda x, y: 0.0)
@@ -76,12 +80,18 @@ def make_two_material_demo_magnetic(mesh: Mesh2DRect, x_split: float = 0.5,
     top_bc = DirichletBCMagnetic(bnds["top"], lambda x, y: 0.0)
     bottom_bc = DirichletBCMagnetic(bnds["bottom"], lambda x, y: 0.0)
 
-    prob = Magnetic2D(nodes, tris, mat, src)
+    # prob = Magnetic2D(nodes, tris, mat, src)
+    prob = Magnetic2DHcurl(mesh, mat, src)
     prob.assemble()
-    prob.apply_dirichlet([left_bc, right_bc, top_bc, bottom_bc])
+    # prob.apply_dirichlet([left_bc, right_bc, top_bc, bottom_bc])
+    bnd_edges = mesh.boundary_edges()  # {"left":..., "right":..., "top":..., "bottom":...}
+    all_bnd_edges = np.concatenate([bnd_edges["left"], bnd_edges["right"], bnd_edges["top"], bnd_edges["bottom"]])
+    bc_outer = DirichletBCMagneticEdge(edges=all_bnd_edges)  # value=None ⇒ homogeneous
+    prob.apply_dirichlet([bc_outer])
     A_v = prob.solve()
-    Bx, By, centers = prob.magnetic_field()
-    return prob, A_v, Bx, By, centers, nodes, tris
+    # Bx, By, centers = prob.magnetic_field()
+    Bz, centers = prob.magnetic_field()
+    return prob, A_v, Bz, centers, nodes, tris
 
 
 def plot_electric_potential_and_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: bool = True):
@@ -125,7 +135,6 @@ def plot_electric_potential_and_field(nodes, tris, phi, Ex, Ey, outpath_png=None
 
 
 def plot_magnetic_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: bool = True):
-    import matplotlib.tri as mtri
     triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
 
     fig = plt.figure(figsize=(7, 3.0))
@@ -149,6 +158,60 @@ def plot_magnetic_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: b
         plt.show()
     return fig
 
+def plot_magnetic_flux_density_heatmap(nodes: np.ndarray, tris: np.ndarray, Bz_cells: np.ndarray,
+                                       outpath_png: str | None = None, show_mesh: bool = True):
+    """
+    Plot a heatmap of the out-of-plane magnetic flux density B_z for the H(curl) / Nédélec formulation.
+
+    Parameters:
+    -----------
+    nodes : (n_nodes, 2) array
+        Node coordinates.
+    tris : (n_tris, 3) array
+        Triangle connectivity (indices into 'nodes').
+    Bz_cells : (n_tris,) array
+        Cell-centered B_z values, one per triangle.
+    outpath_png : str or None
+        If not None, save the figure to this path (suffix '_Bz.png' appended
+        if '.png' present).
+    show_mesh : bool
+        If True, overlay the mesh edges.
+
+    Returns:
+    -----------
+    fig : matplotlib.figure.Figure
+    """
+    triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
+
+    fig = plt.figure(figsize=(7, 3.0))
+    ax = fig.add_subplot(111)
+
+    # One color per triangle (piecewise constant Bz)
+    tpc = ax.tripcolor(triobj, Bz_cells, shading="flat")
+    cbar = fig.colorbar(tpc, ax=ax)
+    cbar.set_label(r"$B_z$")
+
+    ax.set_aspect("equal")
+    ax.set_title(r"Out-of-plane magnetic flux density $B_z$")
+    ax.set_xlabel(r"$x$")
+    ax.set_ylabel(r"$y$")
+
+    if show_mesh:
+        ax.triplot(triobj, linewidth=0.4, alpha=0.4, color="black")
+
+    plt.tight_layout()
+
+    if outpath_png is not None:
+        # mirror your original naming style
+        if outpath_png.endswith(".png"):
+            save_path = outpath_png.replace(".png", "_Bz.png")
+        else:
+            save_path = outpath_png
+        fig.savefig(save_path, dpi=160, bbox_inches="tight")
+    else:
+        plt.show()
+
+    return fig
 
 electric = False
 
@@ -161,8 +224,10 @@ if __name__ == "__main__":
         plot_electric_potential_and_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh=True)
 
     else:
-        _, A_z, Bx, By, _, nodes, tris = make_two_material_demo_magnetic(mesh_obj,
+        _, A_z, Bz, _, nodes, tris = make_two_material_demo_magnetic(mesh_obj,
                                                                          mat_distribution=(lambda x, y: 1.0),
                                                                          current_function=demo_functions.line_conductor())
-        plot_magnetic_field(nodes, tris, A_z, Bx, By, outpath_png=None, show_mesh=True)
+        # plot_magnetic_field(nodes, tris, A_z, Bx, By, outpath_png=None, show_mesh=True)
+        plot_magnetic_flux_density_heatmap(nodes, tris, Bz)
     print("Demo done.")
+
