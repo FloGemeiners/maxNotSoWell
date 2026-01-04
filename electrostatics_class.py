@@ -21,7 +21,7 @@ try:
 except Exception:
     HAS_SCIPY = False
 
-# Definition of a scalar field.
+# note to myself... Definition of a scalar field.
 ScalarField = Callable[[float, float], float]
 
 @dataclass
@@ -132,6 +132,7 @@ class Electrostatics2D:
         load matrix for specifying the FEM problem
 
     In case boundary conditions are applied to the problem:
+    -------------------------------------------------------
     _fixed_idx: np.ndarray (optional)
         indices specifying fixed nodes
     _free_idx: np.ndarray (optional)
@@ -162,8 +163,8 @@ class Electrostatics2D:
     electric_field(self)
         Computes the electric field at the nodes.
     """
-    def __init__(self, mesh: np.ndarray, material: MaterialEpsilon,
-                 source: Optional[ChargeDensity] = None, fin_elem=None):
+    def __init__(self, mesh: np.ndarray, material: MaterialEpsilon, source: Optional[ChargeDensity] = None,
+                 fin_elem=None):
         """
         Constructor.
 
@@ -212,9 +213,6 @@ class Electrostatics2D:
             areas of the triangle
         grads: np.ndarray
             gradients at the vertices of the triangle
-
-        TODO: Carefully check if this method is actually doing what it is supposed to in terms of correctly
-        TODO: calculating gradients. Same holds for duplicates.
         """
         x0, y0 = p[0]
         x1, y1 = p[1]

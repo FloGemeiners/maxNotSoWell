@@ -5,7 +5,7 @@ Usage:
     import demo_functions
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated November 27, 2025
+    Florian Meiners - November 5, 2025; Last updated January 4, 2026
 
 Functions:
 -----------
@@ -30,10 +30,17 @@ mat_inhomogeneous_2(eps0 = 1.0, eps1 = 5.0, eps2 = 1.0, eps3 = 5.0, xsplit_1 = 0
 
 mat_inhomogeneous_mag(mu0 = 0.1, mu1 = 10.0, mu2 = 0.1, mu3 = 10.0, xsplit = 0.5, ysplit = 0.5)
     like mat_inhomogeneous_2 but with a permeability instead of a permittivity
+
+make_line_current(p0: Tuple[float, float], p1: Tuple[float, float], J0: float, thickness: float) \
+        -> Callable[[float, float], Tuple[float, float]]:
+    in-plane current density concentrated near a line segment (see below)
+make_circular_current(center: Tuple[float, float], radius: float, J0: float, thickness: float) \
+    -> Callable[[float, float], Tuple[float, float]]:
+    in-plane current density concentrated near a circle (see below)
 """
 
 import numpy as np
-
+from typing import Tuple, Callable
 try:
     import scipy.sparse as sp
     import scipy.sparse.linalg as spla
@@ -83,9 +90,89 @@ def mat_inhomogeneous_mag(mu0 = 0.1, mu1 = 10.0, mu2 = 0.1, mu3 = 10.0, xsplit =
     return lambda x, y: mu0 if (x <= xsplit and y <= ysplit) else (mu1 if (x <= xsplit and y > ysplit) else
                                                                   (mu2 if (x > xsplit and y <= ysplit) else mu3))
 
-def j_inplane(x: float, y: float) -> tuple[float, float]:
-    # Simple example: constant Jx in some region
-    if 0.25 <= x <= 0.75 and 0.25 <= y <= 0.75:
-        return (1.0, 0.0)
-    else:
-        return (0.0, 0.0)
+def make_line_current(p0: Tuple[float, float], p1: Tuple[float, float], J0: float, thickness: float) \
+        -> Callable[[float, float], Tuple[float, float]]:
+    """
+    Construct an in-plane current density J(x,y) concentrated near the line segment from p0 to p1.
+
+    Parameters:
+    -----------
+    p0, p1 : (2,) tuples
+        Endpoints of the line segment.
+    J0 : float
+        Magnitude of the current density along the line (per unit "thickness"). Direction is from p0 to p1.
+    thickness : float
+        Half-width of the strip around the line where the current is nonzero.
+        Within |distance_perp| <= thickness the current is constant; outside it is zero.
+
+    Returns:
+    -----------
+    J : callable (x, y) -> (Jx, Jy)
+    """
+    p0 = np.array(p0, dtype=float)
+    p1 = np.array(p1, dtype=float)
+    L_vec = p1 - p0
+    L = np.linalg.norm(L_vec)
+    if L == 0.0:
+        raise ValueError("p0 and p1 must be distinct points")
+    t_hat = L_vec / L  # line direction
+
+    def J(x: float, y: float) -> Tuple[float, float]:
+        pt = np.array([x, y], dtype=float)
+        v = pt - p0
+
+        s = np.dot(v, t_hat)
+        if s < 0.0 or s > L:
+            return (0.0, 0.0)  # outside segment
+
+        d_perp = abs(v[0] * t_hat[1] - v[1] * t_hat[0])
+
+        if d_perp > thickness:
+            return (0.0, 0.0)  # outside the strip
+
+        return (J0 * t_hat[0], J0 * t_hat[1])
+
+    return J
+
+def make_circular_current(center: Tuple[float, float], radius: float, J0: float, thickness: float) \
+    -> Callable[[float, float], Tuple[float, float]]:
+    """
+    Construct an in-plane current density J(x,y) concentrated near a circle.
+
+    Parameters:
+    -----------
+    center : (2,) tuple
+        Center of the circle (xc, yc).
+    radius : float
+        Radius R of the circle.
+    J0 : float
+        Magnitude of the current density along the circle (inside the band).
+        Direction is counterclockwise.
+    thickness : float
+        Half-width of the annular band where the current is nonzero:
+        |rho - R| <= thickness.
+
+    Returns:
+    -----------
+    J : callable (x, y) -> (Jx, Jy)
+    """
+    xc, yc = center
+
+    def J(x: float, y: float) -> Tuple[float, float]:
+        rx = x - xc
+        ry = y - yc
+        rho = np.hypot(rx, ry)  # sqrt(rx^2 + ry^2)
+
+        if rho == 0.0:
+            return (0.0, 0.0)
+        if abs(rho - radius) > thickness:
+            return (0.0, 0.0)
+
+        rhat_x = rx / rho
+        rhat_y = ry / rho
+
+        that_x = -rhat_y
+        that_y = rhat_x
+        return (J0 * that_x, J0 * that_y)
+
+    return J

@@ -1,11 +1,12 @@
 """
-Class for the setup of 2D FEM mesh for electromagnetic field calculations.
+Class for the setup of 2D FEM mesh for electromagnetic field calculations. In its current form, the mesh class allows
+the user to obtain edges, nodes and vertices of the FEM mesh, as well as boundaries.
 
 Usage:
     from mesh_class import *
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated December 15, 2025
+    Florian Meiners - November 5, 2025; Last updated January 4, 2026
 """
 
 from dataclasses import dataclass, field
@@ -39,6 +40,9 @@ class Mesh2DRect:
         number of steps in the x direction
     ny: int
         number of steps in the y direction
+
+    Available after build() is called:
+    ----------------------------------
     nodes: (n_nodes, 2) float
         Node coordinates.
     tris: (n_tris, 3) int
@@ -66,7 +70,7 @@ class Mesh2DRect:
     nx: int
     ny: int
 
-    # def function(argument) -> expected_return_type:
+    # note to myself... def function(argument) -> expected_return_type:
     def build(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Method for building the FEM mesh.
@@ -144,8 +148,8 @@ class Mesh2DRect:
         for t, (n0, n1, n2) in enumerate(tris):  # iterates over the triangles with vertices 0, 1, and 2
             local_edges = [(n0, n1), (n1, n2), (n2, n0)]  # defines the directions of local edges (from 0 to 1 and so on)
             for l, (a, b) in enumerate(local_edges):
-                # global representation (makes sure that edges are geometrically in the same spot despite orientation
-                # mismatches):
+                # global representation
+                # (makes sure that edges are geometrically in the same spot despite orientation mismatches):
                 key = (min(a, b), max(a, b))
                 if key not in edge_map:
                     edge_id = len(edges)
@@ -188,7 +192,7 @@ class Mesh2DRect:
         """
         Return boundary edges grouped by side of the rectangle.
 
-        An edge is on a given side if both its nodes lie on that side.
+        An edge is on a given boundary if both its nodes lie in that boundary.
 
         Parameters:
         -----------
@@ -198,7 +202,7 @@ class Mesh2DRect:
 
         Returns:
         -----------
-        dict with keys "left", "right", "bottom", "top" and values arrays of edge indices.
+        dict with keys "left", "right", "bottom", "top" and value arrays of edge indices.
         """
         x, y = self.nodes[:, 0], self.nodes[:, 1]
         edge_x = x[self.edges]

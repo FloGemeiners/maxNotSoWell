@@ -22,7 +22,6 @@ class FiniteElement(ABC):
     """
 
     # functional properties of the element and basis
-
     @property
     @abstractmethod
     def space_type(self) -> str:
@@ -54,7 +53,6 @@ class FiniteElement(ABC):
         ...
 
     # layout of the degrees of freedom
-
     @abstractmethod
     def num_local_dofs(self) -> int:
         """Total number of local DOFs per cell (either living on edges or vertices of the element)."""
@@ -73,7 +71,6 @@ class FiniteElement(ABC):
         ...
 
     # functional evaluation on the reference element
-
     @abstractmethod
     def evaluate_reference_basis(self, ref_q_points: np.ndarray) -> np.ndarray:
         """
@@ -113,7 +110,6 @@ class FiniteElement(ABC):
         raise NotImplementedError(f"{self.__class__.__name__} does not implement curl")
 
     # helpers for the mapping of the reference element to physical elements (right now triangles in 2D only)
-
     @staticmethod
     def _compute_affine_jacobian(cell_vertices: np.ndarray):
         """
@@ -140,7 +136,6 @@ class FiniteElement(ABC):
         return J, detJ, invJT, x0
 
     # evaluation of basis functions and derivative information on the physical element
-
     def evaluate_basis(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray, ) -> np.ndarray:
         """
         Evaluate basis functions on a physical cell.
@@ -148,7 +143,6 @@ class FiniteElement(ABC):
         Default implementation:
         - For H1: same as reference basis (values are invariant under affine mapping).
         - For H(curl): subclasses should override to apply covariant Piola map.
-        TODO: important implementation!
         """
         if self.space_type == "H1":
             return self.evaluate_reference_basis(ref_q_points)
@@ -314,7 +308,6 @@ class NedelecFirstKindTriP1(FiniteElement):
         raise ValueError("entity_dim must be 0,1,2,3")
 
     # evaluation on the basis element
-
     def evaluate_reference_basis(self, ref_q_points: np.ndarray) -> np.ndarray:
         """
         Nédélec basis on reference triangle with vertices (0,0), (1,0), (0,1).
@@ -361,7 +354,6 @@ class NedelecFirstKindTriP1(FiniteElement):
         return 2.0 * np.ones((n_q, 3), dtype=float)
 
     # mapping to the physical element (H(curl) Piola)
-
     def evaluate_basis(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray, ) -> np.ndarray:
         """
         Evaluate Nédélec basis on a physical triangle (2D, H(curl)).
@@ -372,8 +364,8 @@ class NedelecFirstKindTriP1(FiniteElement):
         ref_vals = self.evaluate_reference_basis(ref_q_points)
         _, _, invJT, _ = self._compute_affine_jacobian(cell_vertices)
 
-        # Use the Einstein summation convention to apply J^{-T} (inverse transposed Jacobian) to every basis vector at
-        # every quadrature point (which means left-multiplying by J^{-T}):
+        # note to myself... Use the Einstein summation convention to apply J^{-T} (inverse transposed Jacobian) to every #
+        # basis vector at every quadrature point (which means left-multiplying by J^{-T}):
         # invJT: (2,2), ref_vals: (n_q,3,2) -> out: (n_q,3,2)
         vals = np.einsum("ij,qkj->qki", invJT, ref_vals)
         return vals
