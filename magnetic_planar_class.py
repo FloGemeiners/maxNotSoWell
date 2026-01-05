@@ -1,5 +1,5 @@
 """
-Collection of classes allowing for the setup of 2D magnetostatic Maxwell problems. For now, sources of the magnetic
+Collection of classes allowing for the setup of 2D magnetoquasitatic Maxwell problems. For now, sources of the magnetic
 field are limited to being electric currents.
 
 The Magnetic2D class is to be understood as the magnetic pendant of the electrostatic case, while the Magnetic2DHcurl

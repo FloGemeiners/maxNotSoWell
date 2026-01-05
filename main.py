@@ -5,7 +5,7 @@ Usage:
     python3 main.py or hit the play button
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated January 4, 2026
+    Florian Meiners - November 5, 2025; Last updated January 5, 2026
 
 Functions:
 -----------
@@ -22,8 +22,15 @@ make_two_material_demo_magnetic(mesh: Mesh2DRect, vector_source, mat_distributio
     specified domain; as of January 4, 2026, the implementation is extended by a Nédélec formulation of this problem
     with in-plane current density J(x,y)
 
-plot_magnetic_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: bool = True)
+make_two_material_demo_magnetostatic(mesh: Mesh2DRect, mat_distribution, M_callable, x_split: float = 0.5,
+                                        eps_left: float = 10.0, eps_right: float = 1.0)
+    creates a 2D demo of the magnetostatic FEM calculation with specified material and current distributions across a
+    specified domain; the sources are permanent magnets in this case
+
+plot_magnetic_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: bool = True, title: str = None):
+    triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
     plots the magnetic field over contours of the z component of the magnetic vector potential
+
 plot_magnetic_flux_density_heatmap(nodes: np.ndarray, tris: np.ndarray, Bz_cells: np.ndarray,
                                    outpath_png: str | None = None, show_mesh: bool = True):
     plots the z-component of the magnetic field; since the field only points into and out of the plane, there is no use
@@ -34,6 +41,7 @@ import matplotlib.pyplot as plt
 import demo_functions
 from electrostatics_class import *
 from magnetic_planar_class import *
+from magnetostatic_planar_class import *
 from mesh_class import *
 import matplotlib.tri as mtri
 
@@ -76,11 +84,11 @@ def make_two_material_demo_magnetic(mesh: Mesh2DRect, vector_source, mat_distrib
     mat = MaterialMu(mat_distribution if mat_distribution is not None
                      else (lambda x, y: eps_left if x <= x_split else eps_right))
     src = CurrentDensity(current_function if current_function is not None else (lambda x, y: 0.0))
-    bnds = mesh.boundary_nodes(nodes)
-    left_bc = DirichletBCMagnetic(bnds["left"], lambda x, y: 0.0)
-    right_bc = DirichletBCMagnetic(bnds["right"], lambda x, y: 0.0)
-    top_bc = DirichletBCMagnetic(bnds["top"], lambda x, y: 0.0)
-    bottom_bc = DirichletBCMagnetic(bnds["bottom"], lambda x, y: 0.0)
+    # bnds = mesh.boundary_nodes(nodes)
+    # left_bc = DirichletBCMagnetic(bnds["left"], lambda x, y: 0.0)
+    # right_bc = DirichletBCMagnetic(bnds["right"], lambda x, y: 0.0)
+    # top_bc = DirichletBCMagnetic(bnds["top"], lambda x, y: 0.0)
+    # bottom_bc = DirichletBCMagnetic(bnds["bottom"], lambda x, y: 0.0)
 
     # prob = Magnetic2D(nodes, tris, mat, src)
     prob = Magnetic2DHcurl(mesh, mat, src, vector_source=vector_source)
@@ -94,6 +102,27 @@ def make_two_material_demo_magnetic(mesh: Mesh2DRect, vector_source, mat_distrib
     # Bx, By, centers = prob.magnetic_field()
     Bz, centers = prob.magnetic_field()
     return prob, A_v, Bz, centers, nodes, tris
+
+
+def make_two_material_demo_magnetostatic(mesh: Mesh2DRect, mat_distribution, M_callable, x_split: float = 0.5,
+                                        eps_left: float = 10.0, eps_right: float = 1.0):
+    nodes, tris = mesh.build()
+
+    mat = MaterialMu(mat_distribution if mat_distribution is not None
+                     else (lambda x, y: eps_left if x <= x_split else eps_right))
+    problem = Magnetostatic2D(nodes, tris, material=mat, remanence=RemanentFluxDensityInPlane(Br=M_callable))
+    problem.assemble()
+    bnds = mesh.boundary_nodes(nodes)
+    left_bc = DirichletBCMagnetic(bnds["left"], lambda x, y: 0.0)
+    right_bc = DirichletBCMagnetic(bnds["right"], lambda x, y: 0.0)
+    top_bc = DirichletBCMagnetic(bnds["top"], lambda x, y: 0.0)
+    bottom_bc = DirichletBCMagnetic(bnds["bottom"], lambda x, y: 0.0)
+    problem.apply_dirichlet([left_bc, right_bc, top_bc, bottom_bc])
+
+    A_v = problem.solve()
+    Bx, By, centers = problem.magnetic_field()
+
+    return problem, A_v, Bx, By, centers, nodes, tris
 
 
 def plot_electric_potential_and_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: bool = True):
@@ -136,7 +165,7 @@ def plot_electric_potential_and_field(nodes, tris, phi, Ex, Ey, outpath_png=None
     return fig1, fig2
 
 
-def plot_magnetic_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: bool = True):
+def plot_magnetic_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: bool = True, title: str = None):
     triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
 
     fig = plt.figure(figsize=(7, 3.0))
@@ -145,8 +174,10 @@ def plot_magnetic_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh: b
     step = max(1, len(nodes)//3000)
     ax.quiver(nodes[::step, 0], nodes[::step, 1], Ex[::step], Ey[::step])
     ax.set_aspect('equal')
-    ax.set_title(r"Magnetic field $\mathbf{B}$ over contours of the "
-                 r"$z$-component of the magnetic vector potential $\mathbf{A}$")
+    if title is not None:
+        ax.set_title(title)
+    else:
+        ax.set_title("Magnetic Field")
     ax.set_xlabel(r"$x$")
     ax.set_ylabel(r"$y$")
 
@@ -192,22 +223,33 @@ def plot_magnetic_flux_density_heatmap(nodes: np.ndarray, tris: np.ndarray, Bz_c
 
     return fig
 
-electric = False
+scenario = "Electrostatic"
 
 if __name__ == "__main__":
     mesh_obj = Mesh2DRect(0.0, 1.0, 0.0, 1.0, nx=91, ny=91)
-    if electric:
-        _, phi, Ex, Ey, _, nodes, tris = make_two_material_demo(mesh_obj,
-                                                                charge_function=demo_functions.rho_gauss_2(),
-                                                                mat_distribution=demo_functions.mat_inhomogeneous_2())
-        plot_electric_potential_and_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh=True)
+    match scenario:
+        case "Electrostatic":
+            _, phi, Ex, Ey, _, nodes, tris = make_two_material_demo(mesh_obj,
+                                                                    charge_function=demo_functions.rho_gauss_2(),
+                                                                    mat_distribution=demo_functions.mat_inhomogeneous_2())
+            plot_electric_potential_and_field(nodes, tris, phi, Ex, Ey, outpath_png=None, show_mesh=True)
+        case "Magnetoquasistatic":
+            J_line = demo_functions.make_line_current(p0=(0.25, 0.5), p1=(0.75, 0.5), J0=1.0, thickness=0.01)
+            J_circle = demo_functions.make_circular_current(center=(0.5, 0.5), radius=0.2, J0=-10.0, thickness=0.01)
+            _, A_z, Bz, _, nodes, tris = make_two_material_demo_magnetic(mesh_obj, vector_source=J_line,
+                                                                         mat_distribution=None, eps_left=1, eps_right=1)
+            plot_magnetic_flux_density_heatmap(nodes, tris, Bz)
+        case "Magnetostatic":
+            Br_bar = demo_functions.make_rectangular_Br(center=(0.5, 0.5), half_sizes=(0.15, 0.07), Br0=1.0,
+                                                        direction=(1.0, 0.0), smoothing=0.01)
+            Br_horseshoe = demo_functions.make_horseshoe_Br(center=(0.5, 0.5), leg_length=0.35, leg_thickness=0.08,
+                                                            gap=0.10, yoke_thickness=0.08, Br0=1.0, angle_rad=0.0,
+                                                            smoothing=0.01, opening="up", gap_flux_lr=+1)
+            _, A_z, Bx, By, _, nodes, tris = make_two_material_demo_magnetostatic(mesh_obj, mat_distribution=None,
+                                                                                  M_callable=Br_horseshoe,
+                                                                                  eps_left=1, eps_right=1)
+            plot_magnetic_field(nodes, tris, A_z, Bx, By, outpath_png=None, show_mesh=True,
+                                title=r"Magnetic field $\mathbf{B}$")
 
-    else:
-        J_line = demo_functions.make_line_current(p0=(0.25, 0.5), p1=(0.75, 0.5), J0=1.0, thickness=0.01)
-        J_circle = demo_functions.make_circular_current(center=(0.5, 0.5), radius=0.2, J0=-10.0, thickness=0.01)
-        _, A_z, Bz, _, nodes, tris = make_two_material_demo_magnetic(mesh_obj, vector_source=J_line,
-                                                                     mat_distribution=None, eps_left=1, eps_right=1)
-        # plot_magnetic_field(nodes, tris, A_z, Bx, By, outpath_png=None, show_mesh=True)
-        plot_magnetic_flux_density_heatmap(nodes, tris, Bz)
     print("Demo done.")
 
