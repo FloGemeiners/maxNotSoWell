@@ -67,38 +67,38 @@ except Exception:
 
 VectorField2D = Callable[[float, float], Tuple[float, float]]
 
-def rho_gauss(x0=0.5, y0=0.25, sigma=0.001, Q=50.0):
+def rho_gauss(x0=1.0, y0=0.5, sigma=0.001, Q=1.0):
     # simple function realizing a gaussian charge distribution in the plane
     inv2 = 1.0/(2*sigma*sigma)
     norm = Q/(2*np.pi*sigma*sigma)
     return lambda x, y: norm*np.exp(-((x-x0)**2 + (y-y0)**2)*inv2)
 
 
-def rho_gauss_2(x0=0.3, y0=0.5, x1=0.7, y1=0.5, sigma=0.05, Q=50.0):
+def rho_gauss_2(x0=0.5, y0=0.25, x1=1.5, y1=0.75, sigma=0.05, Q=1.0):
     # simple function realizing a bimodal gaussian charge distribution in the plane
     inv2 = 1.0/(2*sigma*sigma)
     norm = Q/(2*np.pi*sigma*sigma)
     return lambda x, y: + norm*np.exp(-((x-x0)**2 + (y-y0)**2)*inv2) - 2 * norm*np.exp(-((x-x1)**2 + (y-y1)**2)*inv2)
 
 
-def line_conductor(x0=0.5, y0=0.5):
+def line_conductor(x0=1.0, y0=0.5):
     # simple function realizing a single conductor with radius 0.1 out of the plane at (x0, y0)
     return lambda x, y: 20.0 if ((x - x0) ** 2 + (y - y0) ** 2 < 0.01) else 0.0
 
 
-def line_conductor_2(x0=0.45, y0=0.45, x1=0.55, y1=0.55):
+def line_conductor_2(x0=0.5, y0=0.45, x1=1.5, y1=0.55):
     # simple function realizing two conductors with radii 0.1 out of the plane at (x0, y0) and into the plane at (x1, y1)
     return lambda x, y: 40.0 if ((x - x0) ** 2 + (y - y0) ** 2 < 0.01) else (-40 if ((x - x1) ** 2 + (y - y1) ** 2 < 0.01) else 0.0)
 
 
-def mat_inhomogeneous(eps0 = 1.0, eps1 = 10.0, eps2 = 1.0, eps3 = 10.0, xsplit = 0.5, ysplit = 0.5):
+def mat_inhomogeneous(eps0 = 1.0, eps1 = 10.0, eps2 = 1.0, eps3 = 10.0, xsplit = 1.0, ysplit = 0.5):
     # simple function realizing an inhomogeneous material distribution in the plane (division into 4 quadrants)
     return lambda x, y: eps0 if (x <= xsplit and y <= ysplit) else (eps1 if (x <= xsplit and y > ysplit) else
                                                                   (eps2 if (x > xsplit and y <= ysplit) else eps3))
 
 
 def mat_inhomogeneous_2(eps0 = 1.0, eps1 = 5.0, eps2 = 1.0, eps3 = 5.0,
-                        xsplit_1 = 0.25, xsplit_2 = 0.5, xsplit_3 = 0.75):
+                        xsplit_1 = 0.5, xsplit_2 = 1.0, xsplit_3 = 1.5):
     # simple function realizing an inhomogeneous material distribution in the plane (division into 4 parallel sections)
     return lambda x, y: eps0 if (x <= xsplit_1) else (eps1 if (x <= xsplit_2) else (eps2 if (x <= xsplit_3) else eps3))
 

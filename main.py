@@ -530,24 +530,24 @@ class MainWindow(QMainWindow):
         source = demo_functions.rho_gauss()
         match self.selected_source:
             case "Gaussian Unimodal (charge)":
-                source = demo_functions.rho_gauss(sigma=self.rho_value)
+                source = demo_functions.rho_gauss(Q=self.rho_value)
             case "Gaussian Bimodal (charge)":
-                source = demo_functions.rho_gauss_2(sigma=self.rho_value)
+                source = demo_functions.rho_gauss_2(Q=self.rho_value)
             case "Line Conductor (current density)":
                 source = demo_functions.line_conductor()
             case "Double Line Conductor (current density)":
                 source = demo_functions.line_conductor_2()
             case "Linear Current in-plane (current density)":
-                source = demo_functions.make_line_current(p0=(0.25, 0.5), p1=(0.75, 0.5),
+                source = demo_functions.make_line_current(p0=(0.5, 0.5), p1=(1.5, 0.5),
                                                           J0=self.j_value, thickness=0.01)
             case "Circular Current in-plane (current density)":
-                source = demo_functions.make_circular_current(center=(0.5, 0.5), radius=0.2,
+                source = demo_functions.make_circular_current(center=(1.0, 0.5), radius=0.2,
                                                               J0=-self.j_value, thickness=0.01)
             case "Rectangular Permanent Magnet (remanent flux density)":
-                source = demo_functions.make_rectangular_Br(center=(0.5, 0.5), half_sizes=(0.15, 0.07), Br0=self.B_value,
+                source = demo_functions.make_rectangular_Br(center=(1.0, 0.5), half_sizes=(0.15, 0.07), Br0=self.B_value,
                                                             direction=(1.0, 0.0), smoothing=0.01)
             case "Horseshoe Magnet (remanent flux density)":
-                source = demo_functions.make_horseshoe_Br(center=(0.5, 0.5), leg_length=0.35, leg_thickness=0.08,
+                source = demo_functions.make_horseshoe_Br(center=(1.0, 0.5), leg_length=0.35, leg_thickness=0.08,
                                                           gap=0.10, yoke_thickness=0.08, Br0=self.B_value, angle_rad=0.0,
                                                           smoothing=0.01, opening="up", gap_flux_lr=+1)
 
@@ -771,7 +771,7 @@ class MainWindow(QMainWindow):
         -----------
             self.rho_value
         """
-        if self.rho_changed().hasAcceptableInput():
+        if self.rho_line_edit.hasAcceptableInput():
             self.rho_line_edit.setText(self.rho_line_edit.text())
             self.rho_value = float(self.rho_line_edit.text())
 
@@ -789,7 +789,7 @@ class MainWindow(QMainWindow):
         -----------
             self.j_value
         """
-        if self.j_changed().hasAcceptableInput():
+        if self.j_line_edit.hasAcceptableInput():
             self.j_line_edit.setText(self.j_line_edit.text())
             self.j_value = float(self.j_line_edit.text())
 
@@ -807,7 +807,7 @@ class MainWindow(QMainWindow):
         -----------
             self.B_value
         """
-        if self.B_changed().hasAcceptableInput():
+        if self.B_line_edit.hasAcceptableInput():
             self.B_line_edit.setText(self.B_line_edit.text())
             self.B_value = float(self.B_line_edit.text())
 
