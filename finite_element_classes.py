@@ -320,9 +320,9 @@ class NedelecFirstKindTriP1(FiniteElement):
 
         which simplifies to:
 
-            N0(xi,eta) = (1 - eta,   xi    )
-            N1(xi,eta) = (  -eta,    xi    )
-            N2(xi,eta) = (  -eta,    xi - 1)
+            N0(xi,eta) = (1 - eta,     xi  )
+            N1(xi,eta) = ( -eta  ,     xi  )
+            N2(xi,eta) = ( -eta  ,   xi - 1)
         """
         xi = ref_q_points[:, 0]
         eta = ref_q_points[:, 1]
@@ -364,7 +364,7 @@ class NedelecFirstKindTriP1(FiniteElement):
         ref_vals = self.evaluate_reference_basis(ref_q_points)
         _, _, invJT, _ = self._compute_affine_jacobian(cell_vertices)
 
-        # note to myself... Use the Einstein summation convention to apply J^{-T} (inverse transposed Jacobian) to every #
+        # note to myself... Use the Einstein summation convention to apply J^{-T} (inverse transposed Jacobian) to every
         # basis vector at every quadrature point (which means left-multiplying by J^{-T}):
         # invJT: (2,2), ref_vals: (n_q,3,2) -> out: (n_q,3,2)
         vals = np.einsum("ij,qkj->qki", invJT, ref_vals)

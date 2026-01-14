@@ -7,9 +7,11 @@ Usage:
     python3 main.py or hit the play button
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated January 11, 2026
+    Florian Meiners - November 5, 2025; Last updated January 14, 2026
 """
 import sys
+from abc import abstractmethod
+
 from PyQt6.QtCore import *
 import PyQt6.QtGui as QtGui
 from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLineEdit,
@@ -98,6 +100,8 @@ class MainWindow(QMainWindow):
             checkbox to select whether to plot the potential in Electrostatic FEM
         checkbox_in_plane: QCheckBox
             checkbox to select whether the current in magnetoquasistatic FEM is in-plane
+        checkbox_show_magnet: QCheckBox
+            checkbox to select whether the shape of the magnet should be shown in the magnetostatic case
         q_combo_source_selector: QComboBox
             drop-down menu to select the source term for the FEM calculation
         q_combo_material_selector: QComboBox
@@ -123,6 +127,8 @@ class MainWindow(QMainWindow):
             shows whether the current is in-plane in the magnetoquasistatic case
         show_grid_checked: Boolean
             shows whether the grid should be plotted or not
+        show_magnet_checked: Boolean
+            shows whether the permanent magnet should be displayed or not
         selected_scenario: String
             information about the selected scenario
         selected_source: String
@@ -150,15 +156,19 @@ class MainWindow(QMainWindow):
         checkbox_plot_potential(self):
             handles the decisions of whether to plot the potential in Electrostatic FEM
         checkbox_in_plane(self):
-             decides whether the current is in-plane in the magnetoquasistatic case
-        _plot_electric_potential_and_field(self, nodes, tris, phi, Ex, Ey, show_mesh, plot_potential):
-                                           triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
+            decides whether the current is in-plane in the magnetoquasistatic case
+        checkbox_show_magnet_checked(self, s):
+            decides whether the shape of the permanent magnet should be shown in the magnetostatic case
+        plot_electric_potential_and_field(self, nodes, tris, phi, Ex, Ey, show_mesh, plot_potential):
+                                        triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
             plots the electric field and potential (if desired); the electric field is displayed in the main window,
             while an additional window is shown for the potential if need be
-        _plot_magnetic_field(self, nodes, tris, A_v, Bx, By, show_mesh):
+        plot_magnetic_field(self, nodes, tris, A_v, Bx, By, show_mesh):
             plots the magnetic field
-        _plot_magnetic_flux_density_heatmap(self, nodes, tris, Bz_cells, show_mesh):
+        plot_magnetic_flux_density_heatmap(self, nodes, tris, Bz_cells, show_mesh):
             plots the out-of-plane component of the magnetic field
+        plot_magnet_shape(self, center, half_sizes, angle_rad, ):
+            plots the shape of the permanent magnet in the magnetostatic case
         closeEvent(self, event):
             closes all windows when the program is terminated by closing the main window
     """
@@ -194,6 +204,9 @@ class MainWindow(QMainWindow):
         self.checkbox_in_plane = QCheckBox("In-plane current")
         self.checkbox_in_plane.setFixedHeight(30)
         self.checkbox_in_plane.setEnabled(False)
+        self.checkbox_show_magnet = QCheckBox("Show magnet")
+        self.checkbox_show_magnet.setFixedHeight(30)
+        self.checkbox_show_magnet.setEnabled(False)
 
         # layout for general selection (scenario and options)
         layout_scenario = QGridLayout()
@@ -205,6 +218,7 @@ class MainWindow(QMainWindow):
         layout_scenario.addWidget(self.checkbox_show_grid, 1, 2)
         layout_scenario.addWidget(self.checkbox_plot_potential, 2, 2)
         layout_scenario.addWidget(self.checkbox_in_plane, 3, 2)
+        layout_scenario.addWidget(self.checkbox_show_magnet, 4, 2)
 
         # selection of source distribution
         self.q_combo_source_selector = QComboBox()
@@ -256,7 +270,6 @@ class MainWindow(QMainWindow):
         self.rho_line_edit = QLineEdit()
         self.j_line_edit = QLineEdit()
         self.B_line_edit = QLineEdit()
-        # self.phi_line_edit = QLineEdit()
 
         # layout for value input
         layout_values = QGridLayout()
@@ -362,9 +375,11 @@ class MainWindow(QMainWindow):
         self.potential_checked = False
         self.in_plane_checked = False
         self.show_grid_checked = False
+        self.show_magnet_checked = False
         self.checkbox_plot_potential.stateChanged.connect(self.checkbox_plot_potential_checked)
         self.checkbox_in_plane.stateChanged.connect(self.checkbox_in_plane_checked)
         self.checkbox_show_grid.stateChanged.connect(self.checkbox_show_grid_checked)
+        self.checkbox_show_magnet.stateChanged.connect(self.checkbox_show_magnet_checked)
 
         # dummy plot
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
@@ -407,6 +422,7 @@ class MainWindow(QMainWindow):
         if self.selected_scenario == "Electrostatic":
             self.checkbox_plot_potential.setEnabled(True)
             self.checkbox_in_plane.setEnabled(False)
+            self.checkbox_show_magnet.setEnabled(False)
 
             self.eps_label.setEnabled(True)
             self.eps_1_line_edit.setEnabled(True)
@@ -430,6 +446,7 @@ class MainWindow(QMainWindow):
         elif self.selected_scenario == "Magnetostatic":
             self.checkbox_plot_potential.setEnabled(False)
             self.checkbox_in_plane.setEnabled(False)
+            self.checkbox_show_magnet.setEnabled(True)
 
             self.eps_label.setEnabled(False)
             self.eps_1_line_edit.setEnabled(False)
@@ -453,6 +470,7 @@ class MainWindow(QMainWindow):
         elif self.selected_scenario == "Magnetoquasistatic":
             self.checkbox_plot_potential.setEnabled(False)
             self.checkbox_in_plane.setEnabled(True)
+            self.checkbox_show_magnet.setEnabled(True)
 
             self.eps_label.setEnabled(False)
             self.eps_1_line_edit.setEnabled(False)
@@ -544,7 +562,7 @@ class MainWindow(QMainWindow):
                 source = demo_functions.make_circular_current(center=(1.0, 0.5), radius=0.2,
                                                               J0=-self.j_value, thickness=0.01)
             case "Rectangular Permanent Magnet (remanent flux density)":
-                source = demo_functions.make_rectangular_Br(center=(1.0, 0.5), half_sizes=(0.15, 0.07), Br0=self.B_value,
+                source = demo_functions.make_rectangular_Br(center=(1.0, 0.5), half_sizes=(0.2, 0.1), Br0=self.B_value,
                                                             direction=(1.0, 0.0), smoothing=0.01)
             case "Horseshoe Magnet (remanent flux density)":
                 source = demo_functions.make_horseshoe_Br(center=(1.0, 0.5), leg_length=0.35, leg_thickness=0.08,
@@ -590,6 +608,12 @@ class MainWindow(QMainWindow):
                     self.line_output.setText("Choose appropriate source term!")
                 else:
                     self.plot_magnetic_field(nodes, tris, A_z, Bx, By, self.show_grid_checked)
+                    if self.show_magnet_checked:
+                    # TODO: this is dangerous, all parameters are passed whether the magnet is a horseshoe or not
+                    # TODO: also, the parameters are independent of the source term right now, which makes no sense
+                        self.plot_magnet_shape(center=(1.0, 0.5), half_sizes=(0.2, 0.1), angle_rad=0.0, leg_length=0.35,
+                                               leg_thickness=0.08, gap=0.10, yoke_thickness=0.08, opening="up", grid_n=600,
+                                               margin=0.25)
             case "Magnetoquasistatic":
                 if self.in_plane_checked:
                     _, A_z, Bz, _, nodes, tris = demo_maker.make_two_material_demo_magnetic_nedelec(mesh_obj,
@@ -871,6 +895,26 @@ class MainWindow(QMainWindow):
         else:
             self.in_plane_checked = True
 
+    def checkbox_show_magnet_checked(self, s):
+        """
+        Selects whether the magnet in the magnetostatic case should be displayed in the plot.
+
+        Parameters:
+        -----------
+            s: int
+                value of the checkbox_show_magnet checkbox
+        Returns:
+        -----------
+            Nothing
+        Sets:
+        -----------
+            self.magnet_checked
+        """
+        if s == 0:
+            self.show_magnet_checked = False
+        else:
+            self.show_magnet_checked = True
+
     def plot_electric_potential_and_field(self, nodes, tris, phi, Ex, Ey, show_mesh, plot_potential):
         triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
         """
@@ -1006,6 +1050,82 @@ class MainWindow(QMainWindow):
         if show_mesh:
             self.sc.axes.triplot(triobj, linewidth=0.4, alpha=0.4, color="black")
         self.sc.draw()
+
+    def plot_magnet_shape(self, center, half_sizes, angle_rad, leg_thickness, leg_length, gap, yoke_thickness, margin,
+                          grid_n, opening):
+        """
+        Shows the shape of the permanent magnet in the magnetostatic case.
+
+        Parameters:
+        -----------
+            center: np.ndarray
+                center of the magnet in x,y coordinates
+            half_sizes: np.ndarray
+                half sizes of the magnet
+            angle_rad: float
+                angle of the magnet relative to the horizontal line
+            leg_thickness: float
+                leg thickness of a horseshoe magnet
+            leg_length: float
+                leg length of a horseshoe magnet
+            gap: float
+                gap width of a horseshoe magnet
+            yoke_thickness: float
+                yoke thickness of a horseshoe magnet
+            margin: float
+                allowed margin for an area with nonzero remanent flux density to be considered part of the magnet
+            grid_n: int
+                number of grid points to plot the outline from
+            opening: string
+                direction in which a horseshow magnet is pointing
+
+        Returns:
+        -----------
+            Nothing
+        """
+        match self.selected_source:
+            case "Rectangular Permanent Magnet (remanent flux density)":
+                x1_unrotated_untranslated = np.array([- half_sizes[0], - half_sizes[1]])
+                x2_unrotated_untranslated = np.array([- half_sizes[0], + half_sizes[1]])
+                x3_unrotated_untranslated = np.array([+ half_sizes[0], + half_sizes[1]])
+                x4_unrotated_untranslated = np.array([+ half_sizes[0], - half_sizes[1]])
+
+                x_unrotated_untranslated = [x1_unrotated_untranslated, x2_unrotated_untranslated,
+                                            x3_unrotated_untranslated, x4_unrotated_untranslated]
+                x_untranslated = np.zeros_like(x_unrotated_untranslated)
+                rot_mat = np.array([[np.cos(angle_rad), -np.sin(angle_rad)],
+                                    [np.sin(angle_rad), np.cos(angle_rad)]])
+                for i in range(len(x_unrotated_untranslated)):
+                    x_untranslated[i] = rot_mat.dot(x_unrotated_untranslated[i])
+
+                x_fin = np.zeros_like(x_untranslated)
+                for i in range(len(x_untranslated)):
+                    x_fin[i] = x_untranslated[i] + np.array([center[0], center[1]])
+
+                self.sc.axes.plot(np.pad(x_fin[:, 0], (0, 1), mode="wrap"),
+                                  np.pad(x_fin[:, 1], (0, 1), mode="wrap"), color="red", linewidth=1)
+                self.sc.draw()
+            case "Horseshoe Magnet (remanent flux density)":
+                t = float(leg_thickness)
+                L = float(leg_length)
+                g = float(gap)
+                ty = float(yoke_thickness)
+                outer_w = g + 2.0 * t
+                total_h = ty + L
+                half_w = 0.5 * outer_w
+                half_h = 0.5 * total_h
+                R = np.hypot(half_w, half_h) + margin
+
+                xc, yc = center
+                x = np.linspace(xc - R, xc + R, int(grid_n))
+                y = np.linspace(yc - R, yc + R, int(grid_n))
+                X, Y = np.meshgrid(x, y)
+                # calls the signed distance to the horseshoe in demo_functions
+                SD = demo_functions.horseshoe_signed_distance(X, Y, center=center, leg_length=leg_length,
+                                                              leg_thickness=leg_thickness, gap=gap, opening=opening,
+                                                              yoke_thickness=yoke_thickness, angle_rad=angle_rad)
+                self.sc.axes.contour(X, Y, SD, levels=[0.0], colors="red", linewidths=1)
+                self.sc.draw()
 
     def closeEvent(self, event):  # this closes all windows
         """

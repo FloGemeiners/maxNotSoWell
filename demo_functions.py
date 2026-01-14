@@ -5,7 +5,7 @@ Usage:
     import demo_functions
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated January 5, 2026
+    Florian Meiners - November 5, 2025; Last updated January 14, 2026
 
 Functions:
 -----------
@@ -43,17 +43,21 @@ _smooth_indicator(sd: float, smoothing: float):
     Helper function to obtain smooth outside curves in the horseshoe magnet.
 
 _signed_distance_to_rect(x: float, y: float, hx: float, hy: float)
-    Helper function to obtain the distance to a rectangle.
+    Helper function to obtain the signed distance to a rectangle.
 
-def make_rectangular_Br(center: Tuple[float, float], half_sizes: Tuple[float, float], Br0: float,
-                        direction: Tuple[float, float] = (1.0, 0.0), angle_rad: float = 0.0, smoothing: float = 0.0) \
-                        -> Callable[[float, float], Tuple[float, float]]:
+make_rectangular_Br(center: Tuple[float, float], half_sizes: Tuple[float, float], Br0: float,
+                    direction: Tuple[float, float] = (1.0, 0.0), angle_rad: float = 0.0, smoothing: float = 0.0) \
+                    > Callable[[float, float], Tuple[float, float]]:
     returns the in-plane shape of a rectangular magnet (see below)
 
 make_horseshoe_Br(center: Tuple[float, float], leg_length: float, leg_thickness: float, gap: float,
                   yoke_thickness: float, Br0: float, angle_rad: float = 0.0, smoothing: float = 0.0,
                   opening: str = "up", gap_flux_lr: int = +1) -> VectorField2D:
     returns the in-plane shape of a horseshoe magnet (see below)
+
+horseshoe_signed_distance(X, Y, center, leg_length, leg_thickness, gap, yoke_thickness,
+                          angle_rad=0.0, opening="up"):
+    returns the outline of the horseshoe magnet for plotting (see below)
 """
 
 import numpy as np
@@ -115,17 +119,17 @@ def make_line_current(p0: Tuple[float, float], p1: Tuple[float, float], J0: floa
 
     Parameters:
     -----------
-    p0, p1 : (2,) tuples
-        Endpoints of the line segment.
-    J0 : float
-        Magnitude of the current density along the line (per unit "thickness"). Direction is from p0 to p1.
-    thickness : float
-        Half-width of the strip around the line where the current is nonzero.
-        Within |distance_perp| <= thickness the current is constant; outside it is zero.
+        p0, p1 : (2,) tuples
+            Endpoints of the line segment.
+        J0 : float
+            Magnitude of the current density along the line (per unit "thickness"). Direction is from p0 to p1.
+        thickness : float
+            Half-width of the strip around the line where the current is nonzero.
+            Within |distance_perp| <= thickness the current is constant; outside it is zero.
 
     Returns:
     -----------
-    J : callable (x, y) -> (Jx, Jy)
+        J : callable (x, y) -> (Jx, Jy)
     """
     p0 = np.array(p0, dtype=float)
     p1 = np.array(p1, dtype=float)
@@ -159,20 +163,20 @@ def make_circular_current(center: Tuple[float, float], radius: float, J0: float,
 
     Parameters:
     -----------
-    center : (2, ) tuple
-        Center of the circle (xc, yc).
-    radius : float
-        Radius R of the circle.
-    J0 : float
-        Magnitude of the current density along the circle (inside the band).
-        Direction is counterclockwise.
-    thickness : float
-        Half-width of the annular band where the current is nonzero:
-        |rho - R| <= thickness.
+        center : (2, ) tuple
+            Center of the circle (xc, yc).
+        radius : float
+            Radius R of the circle.
+        J0 : float
+            Magnitude of the current density along the circle (inside the band).
+            Direction is counterclockwise.
+        thickness : float
+            Half-width of the annular band where the current is nonzero:
+            |rho - R| <= thickness.
 
     Returns:
     -----------
-    J : callable (x, y) -> (Jx, Jy)
+        J : callable (x, y) -> (Jx, Jy)
     """
     xc, yc = center
 
@@ -196,10 +200,12 @@ def make_circular_current(center: Tuple[float, float], radius: float, J0: float,
     return J
 
 def _signed_distance_to_rect(x: float, y: float, hx: float, hy: float) -> float:
-    dx = abs(x) - hx
-    dy = abs(y) - hy
-    outside = np.hypot(max(dx, 0.0), max(dy, 0.0))
-    inside = min(max(dx, dy), 0.0)
+    dx = np.abs(x) - hx
+    dy = np.abs(y) - hy
+    mdx = np.maximum(dx, 0.0)
+    mdy = np.maximum(dy, 0.0)
+    outside = np.hypot(mdx, mdy)
+    inside = np.minimum(np.maximum(dx, dy), 0.0)
     return outside + inside
 
 def make_rectangular_Br(center: Tuple[float, float], half_sizes: Tuple[float, float], Br0: float,
@@ -210,22 +216,22 @@ def make_rectangular_Br(center: Tuple[float, float], half_sizes: Tuple[float, fl
 
     Parameters:
     -----------
-    center : (2, ) tuple
-        center of the rectangle (xc, yc)
-    half_sizes : (2, ) tuple
-        dimensions of the halves of the rectangle
-    Br0 : float
-        value of the remanent flux density inside the rectangle
-    direction : (2, ) tuple
-        directions of the field
-    angle_rad : float
-        rotation angle in radians
-    smoothing : float
-        smoothing factor to manipulate the roundness of curves
+        center : (2, ) tuple
+            center of the rectangle (xc, yc)
+        half_sizes : (2, ) tuple
+            dimensions of the halves of the rectangle
+        Br0 : float
+            value of the remanent flux density inside the rectangle
+        direction : (2, ) tuple
+            directions of the field
+        angle_rad : float
+            rotation angle in radians
+        smoothing : float
+            smoothing factor to manipulate the roundness of curves
 
     Returns:
     -----------
-    Br : callable (x, y) -> (Brx, Bry)
+        Br : callable (x, y) -> (Brx, Bry)
     """
     xc, yc = center
     hx, hy = half_sizes
@@ -253,7 +259,7 @@ def make_rectangular_Br(center: Tuple[float, float], half_sizes: Tuple[float, fl
         else:
             w = 0.5 * (1.0 - np.tanh(sd / smoothing))
 
-        return (float(Br0 * w * d[0]), float(Br0 * w * d[1]))
+        return float(Br0 * w * d[0]), float(Br0 * w * d[1])
 
     return Br
 
@@ -271,30 +277,30 @@ def make_horseshoe_Br(center: Tuple[float, float], leg_length: float, leg_thickn
 
     Parameters:
     -----------
-    center: (2, ) tuple
-        center of the rectangle (xc, yc)
-    leg_length: float
-        length of the horseshoe leg
-    leg_thickness: float
-        thickness of the horseshoe leg
-    gap: float
-        distance between the horseshoe legs
-    yoke_thickness: float
-        thickness of the yoke connecting the legs
-    Br0 : float
-        value of the remanent flux density inside the horseshoe
-    angle_rad : float
-        rotation angle in radians
-    smoothing : float
-        smoothing factor to manipulate the roundness of curves
-    opening : str
-        direction in which the horseshoe is pointing
-    gap_flux_lr: int
-        direction of the flux between the legs
+        center: (2, ) tuple
+            center of the rectangle (xc, yc)
+        leg_length: float
+            length of the horseshoe leg
+        leg_thickness: float
+            thickness of the horseshoe leg
+        gap: float
+            distance between the horseshoe legs
+        yoke_thickness: float
+            thickness of the yoke connecting the legs
+        Br0 : float
+            value of the remanent flux density inside the horseshoe
+        angle_rad : float
+            rotation angle in radians
+        smoothing : float
+            smoothing factor to manipulate the behavior of the field around the edges of the magnet
+        opening : str
+            direction in which the horseshoe is pointing
+        gap_flux_lr: int
+            direction of the flux between the legs
 
     Returns:
     -----------
-    Br : callable (x, y) -> (Brx, Bry)
+        Br : callable (x, y) -> (Brx, Bry)
     """
     if opening not in ("up", "down"):
         raise ValueError("opening must be 'up' or 'down'")
@@ -348,15 +354,86 @@ def make_horseshoe_Br(center: Tuple[float, float], leg_length: float, leg_thickn
 
         w_occ = max(w_left, w_right, w_yoke)
         if w_occ <= 0.0:
-            return (0.0, 0.0)
+            return 0.0, 0.0
 
         d = w_left * left_dir + w_yoke * yoke_dir + w_right * right_dir
         n = float(np.linalg.norm(d))
         if n == 0.0:
-            return (0.0, 0.0)
+            return 0.0, 0.0
         d /= n
 
         Br_vec = Br0 * w_occ * d
-        return (float(Br_vec[0]), float(Br_vec[1]))
+        return float(Br_vec[0]), float(Br_vec[1])
 
     return Br
+
+
+def horseshoe_signed_distance(X, Y, center, leg_length, leg_thickness, gap, yoke_thickness,
+                              angle_rad=0.0, opening="up"):
+    """
+    Returns the shape of a horseshoe permanent magnet as an in-plane remanent flux density field Br(x,y).
+
+    Parameters:
+    -----------
+        center: (2, ) tuple
+            center of the rectangle (xc, yc)
+        leg_length: float
+            length of the horseshoe leg
+        leg_thickness: float
+            thickness of the horseshoe leg
+        gap: float
+            distance between the horseshoe legs
+        yoke_thickness: float
+            thickness of the yoke connecting the legs
+        Br0 : float
+            value of the remanent flux density inside the horseshoe
+        angle_rad : float
+            rotation angle in radians
+        smoothing : float
+            smoothing factor to manipulate the behavior of the field around the edges of the magnet
+        opening : str
+            direction in which the horseshoe is pointing
+        gap_flux_lr: int
+            direction of the flux between the legs
+
+    Returns:
+    -----------
+        Callable, signed distance to the horseshoe magnet (see above)
+    """
+    xc, yc = center
+    t = float(leg_thickness)
+    L = float(leg_length)
+    g = float(gap)
+    ty = float(yoke_thickness)
+
+    outer_w = g + 2.0 * t
+    total_h = ty + L
+
+    if opening == "up":
+        yoke_yc = -0.5 * total_h + 0.5 * ty
+        legs_yc = yoke_yc + 0.5 * ty + 0.5 * L
+    elif opening == "down":
+        yoke_yc = +0.5 * total_h - 0.5 * ty
+        legs_yc = yoke_yc - 0.5 * ty - 0.5 * L
+    else:
+        raise ValueError("opening must be 'up' or 'down'")
+
+    left_leg_xc = -0.5 * g - 0.5 * t
+    right_leg_xc = +0.5 * g + 0.5 * t
+
+    leg_hx, leg_hy = 0.5 * t, 0.5 * L
+    yoke_hx, yoke_hy = 0.5 * outer_w, 0.5 * ty
+
+    c = np.cos(angle_rad)
+    s = np.sin(angle_rad)
+
+    Xc = X - xc
+    Yc = Y - yc
+    Xl = c * Xc + s * Yc
+    Yl = -s * Xc + c * Yc
+
+    sd_left = _signed_distance_to_rect(Xl - left_leg_xc, Yl - legs_yc, leg_hx, leg_hy)
+    sd_right = _signed_distance_to_rect(Xl - right_leg_xc, Yl - legs_yc, leg_hx, leg_hy)
+    sd_yoke = _signed_distance_to_rect(Xl, Yl - yoke_yc, yoke_hx, yoke_hy)
+
+    return np.minimum.reduce([sd_left, sd_right, sd_yoke])
