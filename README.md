@@ -40,8 +40,8 @@ where $a$ is a bilinear form.
 For the problem above, one begins by left-multiplying the equation with the test vector $\mathbf{w}$ and integrating over 
 the domain:
 
-$$\int_\Omega \mathbf{w}\cdot \left[\nabla \times \left(\mu^{-1}\nabla \times \mathbf{A}\right)\right] \,\mathrm{d}V
- = \int_\Omega \mathbf{w}\cdot \mathbf{J}\, \mathrm{d}V.$$
+$$\int_\Omega \mathbf{w}\cdot \left[\nabla \times \left(\mu^{-1}\nabla \times \mathbf{A}\right)\right] \mathrm{d}V
+ = \int_\Omega \mathbf{w}\cdot \mathbf{J}  \mathrm{d}V.$$
 
 Using the vector identity 
 
@@ -50,27 +50,27 @@ $$\nabla\cdot\left(\mathbf{u}\times\mathbf{v}\right) = \left(\nabla\times\mathbf
 
 one rewrites the above as
 
-$$\int_{\partial\Omega} \mathbf{n}\cdot\bigl(\mathbf{w}\times(\mu^{-1}\nabla\times\mathbf{A})\bigr)\,\mathrm{d}V =
-\int_{\Omega} (\nabla\times\mathbf{w})\cdot(\mu^{-1}\nabla\times\mathbf{A})\,\mathrm{d}V -
-\int_{\Omega} \mathbf{w}\cdot\bigl(\nabla\times(\mu^{-1}\nabla\times\mathbf{A})\bigr)\,\mathrm{d}V,$$
+$$\int_{\partial\Omega} \mathbf{n}\cdot\bigl(\mathbf{w}\times(\mu^{-1}\nabla\times\mathbf{A})\bigr) \mathrm{d}V =
+\int_{\Omega} (\nabla\times\mathbf{w})\cdot(\mu^{-1}\nabla\times\mathbf{A}) \mathrm{d}V -
+\int_{\Omega} \mathbf{w}\cdot\bigl(\nabla\times(\mu^{-1}\nabla\times\mathbf{A})\bigr) \mathrm{d}V,$$
 
 where $\mathbf{n}$ is normal to the boundary. This was obtained by invoking the divergence theorem, which replaces the 
 volume integral by a surface integral:
 
-$$\int_{\Omega} \nabla\cdot\bigl(\mathbf{w}\times(\mu^{-1}\nabla\times\mathbf{A})\bigr)\,\mathrm{d}V =
-\int_{\partial\Omega} \mathbf{n}\cdot\bigl(\mathbf{w}\times(\mu^{-1}\nabla\times\mathbf{A})\bigr)\,\mathrm{d}S =
-\int_{\partial\Omega} (\mathbf{n}\times\mathbf{w})\cdot\bigl(\mu^{-1}\nabla\times\mathbf{A}\bigr)\,\mathrm{d}S.$$
+$$\int_{\Omega} \nabla\cdot\bigl(\mathbf{w}\times(\mu^{-1}\nabla\times\mathbf{A})\bigr) \mathrm{d}V =
+\int_{\partial\Omega} \mathbf{n}\cdot\bigl(\mathbf{w}\times(\mu^{-1}\nabla\times\mathbf{A})\bigr) \mathrm{d}S =
+\int_{\partial\Omega} (\mathbf{n}\times\mathbf{w})\cdot\bigl(\mu^{-1}\nabla\times\mathbf{A}\bigr) \mathrm{d}S.$$
 
 Plugging in the PDE then yields
 
-$$\int_\Omega \mathbf{w}\cdot \mathbf{J}\, \mathrm{d}V = 
-\int_{\Omega} (\nabla\times\mathbf{w})\cdot(\mu^{-1}\nabla\times\mathbf{A})\,\mathrm{d}V -
-\int_{\partial\Omega} (\mathbf{n}\times\mathbf{w})\cdot\bigl(\mu^{-1}\nabla\times\mathbf{A}\bigr)\,\mathrm{d}S.$$
+$$\int_\Omega \mathbf{w}\cdot \mathbf{J}  \mathrm{d}V = 
+\int_{\Omega} (\nabla\times\mathbf{w})\cdot(\mu^{-1}\nabla\times\mathbf{A}) \mathrm{d}V -
+\int_{\partial\Omega} (\mathbf{n}\times\mathbf{w})\cdot\bigl(\mu^{-1}\nabla\times\mathbf{A}\bigr) \mathrm{d}S.$$
 
 Now, since the boundary conditions are purely of Dirichlet type, the boundary term vanishes, therefore,
 
-$$a(\mathbf{w},\mathbf{A}) \triangleq \int_{\Omega} (\nabla\times\mathbf{w})\cdot(\mu^{-1}\nabla\times\mathbf{A})\,
-\mathrm{d}V = \int_\Omega \mathbf{w}\cdot \mathbf{J}\, \mathrm{d}V \triangleq l(\mathbf{w}).$$
+$$a(\mathbf{w},\mathbf{A}) \triangleq \int_{\Omega} (\nabla\times\mathbf{w})\cdot(\mu^{-1}\nabla\times\mathbf{A}) 
+\mathrm{d}V = \int_\Omega \mathbf{w}\cdot \mathbf{J}  \mathrm{d}V \triangleq l(\mathbf{w}).$$
 
 This is the weak form of the problem.
 
@@ -83,13 +83,13 @@ $$\mathbf{A}_h = \sum_{j=1}^{p} a_j \mathbf{N}_j,\quad \mathbf{w}_h = \mathbf{N}
 
 so the above integral expands as
 
-$$\sum_{j=1}^{p} a_j \int_{\Omega} (\nabla\times\mathbf{N}_i)\cdot(\mu^{-1}\nabla\times\mathbf{N}_j)\,
-\mathrm{d}V = \int_\Omega \mathbf{N}_q\cdot \mathbf{J}\, \mathrm{d}V,$$
+$$\sum_{j=1}^{p} a_j \int_{\Omega} (\nabla\times\mathbf{N}_i)\cdot(\mu^{-1}\nabla\times\mathbf{N}_j) 
+\mathrm{d}V = \int_\Omega \mathbf{N}_q\cdot \mathbf{J}  \mathrm{d}V,$$
 
 The matrix form $\mathbf{K}\mathbf{a}=\mathbf{f}$ of this equation with
 
-$$K_{ij} = \int_{\Omega} (\nabla\times\mathbf{N}_i)\cdot(\mu^{-1}\nabla\times\mathbf{N}_j)\, \mathrm{d}V,\quad 
-f_i = \int_\Omega \mathbf{N}_i\cdot \mathbf{J}\, \mathrm{d}V$$
+$$K_{ij} = \int_{\Omega} (\nabla\times\mathbf{N}_i)\cdot(\mu^{-1}\nabla\times\mathbf{N}_j)  \mathrm{d}V,\quad 
+f_i = \int_\Omega \mathbf{N}_i\cdot \mathbf{J}  \mathrm{d}V$$
 
 is what is solved when FE methods are applied. Therein, $i$ indexes the test function (approximate solution of the PDE) 
 and $j$ indexes the basis functions. Depending on the applied procedure, the integrals are numerically solved, 
