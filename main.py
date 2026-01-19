@@ -470,7 +470,7 @@ class MainWindow(QMainWindow):
         elif self.selected_scenario == "Magnetoquasistatic":
             self.checkbox_plot_potential.setEnabled(False)
             self.checkbox_in_plane.setEnabled(True)
-            self.checkbox_show_magnet.setEnabled(True)
+            self.checkbox_show_magnet.setEnabled(False)
 
             self.eps_label.setEnabled(False)
             self.eps_1_line_edit.setEnabled(False)
@@ -969,7 +969,8 @@ class MainWindow(QMainWindow):
         # plot mesh if desired
         if show_mesh:
             self.sc.axes.triplot(triobj, linewidth=0.4, alpha=0.4, color="black")
-            self.potential_window.potential_plot_canvas.axes.triplot(triobj, linewidth=0.4, alpha=0.4, color="black")
+            if plot_potential:
+                self.potential_window.potential_plot_canvas.axes.triplot(triobj, linewidth=0.4, alpha=0.4, color="black")
         self.sc.draw()
 
     def plot_magnetic_field(self, nodes, tris, A_v, Bx, By, show_mesh):

@@ -136,7 +136,7 @@ class FiniteElement(ABC):
         return J, detJ, invJT, x0
 
     # evaluation of basis functions and derivative information on the physical element
-    def evaluate_basis(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray, ) -> np.ndarray:
+    def evaluate_basis(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray) -> np.ndarray:
         """
         Evaluate basis functions on a physical cell.
 
@@ -149,7 +149,7 @@ class FiniteElement(ABC):
         raise NotImplementedError(f"{self.__class__.__name__} must override evaluate_basis" 
                                   f"for space_type='{self.space_type}'")
 
-    def evaluate_gradients(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray, ) -> np.ndarray:
+    def evaluate_gradients(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray) -> np.ndarray:
         """
         Evaluate gradients on a physical cell
         (H1 scalar elements only, this does not make sense for vector-valued basis functions).
@@ -172,7 +172,7 @@ class FiniteElement(ABC):
         _, _, invJT, _ = self._compute_affine_jacobian(cell_vertices)
         return np.einsum("ij,qkj->qki", invJT, ref_grads)
 
-    def evaluate_curl(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray, ) -> np.ndarray:
+    def evaluate_curl(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray) -> np.ndarray:
         """
         Evaluate scalar curl of H(curl) basis on a physical cell in 2D.
 
@@ -354,7 +354,7 @@ class NedelecFirstKindTriP1(FiniteElement):
         return 2.0 * np.ones((n_q, 3), dtype=float)
 
     # mapping to the physical element (H(curl) Piola)
-    def evaluate_basis(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray, ) -> np.ndarray:
+    def evaluate_basis(self, cell_vertices: np.ndarray, ref_q_points: np.ndarray) -> np.ndarray:
         """
         Evaluate Nédélec basis on a physical triangle (2D, H(curl)).
 

@@ -73,8 +73,9 @@ def make_two_material_demo_magnetic_nedelec(mesh: Mesh2DRect, vector_source, mat
     prob.assemble()
     bnd_edges = mesh.boundary_edges()
     all_bnd_edges = np.concatenate([bnd_edges["left"], bnd_edges["right"], bnd_edges["top"], bnd_edges["bottom"]])
-    bc_outer = DirichletBCMagneticEdge(edges=all_bnd_edges)  # value=None ⇒ homogeneous
-    prob.apply_dirichlet([bc_outer])
+    bc_outer = NeumannBCMagneticEdge(edges=all_bnd_edges, value=(lambda x, y: (0.0, 5.0)))
+    # prob.apply_dirichlet([bc_outer])
+    prob.apply_neumann([bc_outer])
     A_v = prob.solve()
     Bz, centers = prob.magnetic_field()
     return prob, A_v, Bz, centers, nodes, tris

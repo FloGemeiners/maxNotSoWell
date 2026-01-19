@@ -96,18 +96,18 @@ and $j$ indexes the basis functions. Depending on the applied procedure, the int
 which is usually cheap because only few basis functions will be nonzero around each element. The formulae can usually be 
 cast in closed form because element areas and volumes are available.
 
-A final remark for completeness: in their simplest form (triangles in 2D), the Nédélec elements use the basis functions
+A final remark for completeness: in their simplest form (triangles in 2D), the Nédélec reference element uses the basis functions
 
 $$\begin{pmatrix}
-1\\
-0
+1-x\\
+y
 \end{pmatrix},\quad\begin{pmatrix}
-0\\
-1
-\end{pmatrix},\quad\begin{pmatrix} 
 y\\
--x
+1-x
+\end{pmatrix},\quad\begin{pmatrix} 
+-y\\
+x
 \end{pmatrix},
 $$
 
-which are precisely the vector fields tangent to the triangle edges.
+which are precisely the vector fields tangent to one triangle edge and perpendicular to the others.
