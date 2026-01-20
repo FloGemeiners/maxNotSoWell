@@ -5,7 +5,7 @@ Usage:
     import demo_maker
 
 Author:
-    Florian Meiners - January 9, 2026
+    Florian Meiners - January 20, 2026
 
 Functions:
 -----------
@@ -14,9 +14,11 @@ make_two_material_demo(mesh: Mesh2DRect, x_split: float = 0.6,
     creates a 2D demo of the FEM calculation with a specified material and charge distribution across a specified domain
 
 make_two_material_demo_magnetic_nedelec(mesh: Mesh2DRect, vector_source, mat_distribution=None, x_split: float = 0.5,
-                                        eps_left: float = 10.0, eps_right: float = 1.0, current_function=None):
-    creates a 2D demo of the magnetic FEM calculation with specified material and current distributions across a
+                                        eps_left: float = 10.0, eps_right: float = 1.0, current_function=None,
+                                        boundary_type="Dirichlet"):
+    Creates a 2D demo of the magnetic FEM calculation with specified material and current distributions across a
     specified domain; the implementation uses a Nédélec formulation of this problem with in-plane current density J(x,y).
+    This function now allows the user to choose between Dirichlet and Neumann boundary conditions.
 
 make_two_material_demo_magnetic(mesh: Mesh2DRect, vector_source, mat_distribution, x_split: float = 0.5,
                                 eps_left: float = 10.0, eps_right: float = 1.0, current_function=None):
@@ -64,7 +66,7 @@ def make_two_material_demo(mesh: Mesh2DRect, x_split: float = 0.6, eps_left: flo
 
 def make_two_material_demo_magnetic_nedelec(mesh: Mesh2DRect, vector_source, mat_distribution=None, x_split: float = 0.5,
                                             eps_left: float = 10.0, eps_right: float = 1.0,
-                                            current_function=None):
+                                            current_function=None, boundary_type="Dirichlet"):
     nodes, tris = mesh.build()
     mat = MaterialMu(mat_distribution if mat_distribution is not None
                      else (lambda x, y: eps_left if x <= x_split else eps_right))
@@ -73,9 +75,14 @@ def make_two_material_demo_magnetic_nedelec(mesh: Mesh2DRect, vector_source, mat
     prob.assemble()
     bnd_edges = mesh.boundary_edges()
     all_bnd_edges = np.concatenate([bnd_edges["left"], bnd_edges["right"], bnd_edges["top"], bnd_edges["bottom"]])
-    bc_outer = NeumannBCMagneticEdge(edges=all_bnd_edges, value=(lambda x, y: (0.0, 5.0)))
-    # prob.apply_dirichlet([bc_outer])
-    prob.apply_neumann([bc_outer])
+
+    match boundary_type:
+        case "Dirichlet":
+            bc_all = DirichletBCMagneticEdge(edges=all_bnd_edges, value=(lambda x, y: 0.0))
+            prob.apply_dirichlet([bc_all])
+        case "Neumann":
+            bc_all = NeumannBCMagneticEdge(edges=all_bnd_edges, value=(lambda x, y: (0.0, 5.0)))
+            prob.apply_neumann([bc_all])
     A_v = prob.solve()
     Bz, centers = prob.magnetic_field()
     return prob, A_v, Bz, centers, nodes, tris

@@ -865,7 +865,7 @@ class Magnetic2DHcurl:
                 fixed[int(e_idx)] = (float(v[0]), float(v[1]))
 
         self._fixed_idx = np.array(sorted(fixed.keys()), dtype=int)
-        all_idx = np.arange(self.N, dtype=int) 
+        all_idx = np.arange(self.N, dtype=int)
         self._free_idx = np.setdiff1d(all_idx, self._fixed_idx, assume_unique=True)
 
         # get end points of edges

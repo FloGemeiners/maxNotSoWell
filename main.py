@@ -7,7 +7,7 @@ Usage:
     python3 main.py or hit the play button
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated January 14, 2026
+    Florian Meiners - November 5, 2025; Last updated January 20, 2026
 """
 import sys
 from abc import abstractmethod
@@ -135,6 +135,8 @@ class MainWindow(QMainWindow):
             information about the selected source term
         selected_material: String
             information about the selected material distribution
+        boundary_type: String
+            information about the type of boundary conditions
         line_output: QLineEdit
             line to give information to the user (for example when the input values aren't feasible)
 
@@ -147,6 +149,8 @@ class MainWindow(QMainWindow):
             sets the information about the seleted source term
         material_changed(self):
             sets the information about the selected material distribution
+        boundary_changed(self):
+            sets the information about the boundary conditions to applied to the FEM simulation
         start_fem(self):
             starts the FEM calculation
         eps_i_changed, mu_i_changed (i = 1, ..., 4), rho_changed, j_changed, B_changed:
@@ -159,6 +163,8 @@ class MainWindow(QMainWindow):
             decides whether the current is in-plane in the magnetoquasistatic case
         checkbox_show_magnet_checked(self, s):
             decides whether the shape of the permanent magnet should be shown in the magnetostatic case
+        on_click_line_edit(self):
+            runs the simulation at the press of the enter key
         plot_electric_potential_and_field(self, nodes, tris, phi, Ex, Ey, show_mesh, plot_potential):
                                         triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
             plots the electric field and potential (if desired); the electric field is displayed in the main window,
@@ -207,11 +213,17 @@ class MainWindow(QMainWindow):
         self.checkbox_show_magnet = QCheckBox("Show magnet")
         self.checkbox_show_magnet.setFixedHeight(30)
         self.checkbox_show_magnet.setEnabled(False)
+        self.q_combo_boundary_selector = QComboBox()
+        self.q_combo_boundary_selector.addItems(["Dirichlet", "Neumann"])
+        self.q_combo_boundary_selector.setFixedWidth(200)
+        self.q_combo_boundary_selector.setEnabled(False)
 
         # layout for general selection (scenario and options)
         layout_scenario = QGridLayout()
         layout_scenario.addWidget(QLabel("Scenario:"), 0, 0)
         layout_scenario.addWidget(self.q_combo_scenario_selector, 1, 0)
+        layout_scenario.addWidget(QLabel("Boundary Conditions:"), 2, 0)
+        layout_scenario.addWidget(self.q_combo_boundary_selector, 3, 0)
 
         layout_scenario.addWidget(dummy_placeholder_h, 1, 1)
         layout_scenario.addWidget(QLabel("Options:"), 0, 2)
@@ -297,6 +309,7 @@ class MainWindow(QMainWindow):
         for te in text_edits:
             te.setFixedWidth(50)
             te.setValidator(QtGui.QDoubleValidator())  # forces the user to plug in a float value
+            te.returnPressed.connect(self.on_click_line_edit)  # starts the FEM simulation when enter is pressed
         for sl in value_labels:
             sl.setFixedWidth(170)
         index_source = layout_values.count()
@@ -341,6 +354,10 @@ class MainWindow(QMainWindow):
         # select material distribution
         self.q_combo_material_selector.activated.connect(self.material_changed)
         self.selected_material = "Quadrants"
+
+        # select boundary type
+        self.q_combo_boundary_selector.activated.connect(self.boundary_changed)
+        self.boundary_type = "Dirichlet"
 
         # start calculation
         self.start_button.clicked.connect(self.start_fem)
@@ -406,23 +423,22 @@ class MainWindow(QMainWindow):
         Parameters:
         -----------
             None
-
         Returns:
         -----------
             nothing
-
         Sets:
         -----------
             self.checkbox_plot_potential.setEnabled, self.checkbox_in_plane.setEnabled, self.eps_label.setEnabled,
             self.mu_label.setEnabled, self.eps_i_line_edit.setEnabled, self.mu_i_line_edit.setEnabled (i = 1, ..., 4),
             self.rho_label.setEnabled, self.rho_line_edit.setEnabled, self.j_label.setEnabled, self.j_line_edit.setEnabled,
-            self.B_label.setEnabled, self.B_line_edit.setEnabled
+            self.B_label.setEnabled, self.B_line_edit.setEnabled, self.q_combo_boundary_selector.setEnabled
         """
         self.selected_scenario = self.q_combo_scenario_selector.currentText()
         if self.selected_scenario == "Electrostatic":
             self.checkbox_plot_potential.setEnabled(True)
             self.checkbox_in_plane.setEnabled(False)
             self.checkbox_show_magnet.setEnabled(False)
+            self.q_combo_boundary_selector.setEnabled(False)
 
             self.eps_label.setEnabled(True)
             self.eps_1_line_edit.setEnabled(True)
@@ -447,6 +463,7 @@ class MainWindow(QMainWindow):
             self.checkbox_plot_potential.setEnabled(False)
             self.checkbox_in_plane.setEnabled(False)
             self.checkbox_show_magnet.setEnabled(True)
+            self.q_combo_boundary_selector.setEnabled(False)
 
             self.eps_label.setEnabled(False)
             self.eps_1_line_edit.setEnabled(False)
@@ -471,6 +488,10 @@ class MainWindow(QMainWindow):
             self.checkbox_plot_potential.setEnabled(False)
             self.checkbox_in_plane.setEnabled(True)
             self.checkbox_show_magnet.setEnabled(False)
+            # if self.in_plane_checked:
+            #     self.q_combo_boundary_selector.setEnabled(True)
+            # else:
+            #     self.q_combo_boundary_selector.setEnabled(False)
 
             self.eps_label.setEnabled(False)
             self.eps_1_line_edit.setEnabled(False)
@@ -498,11 +519,9 @@ class MainWindow(QMainWindow):
         Parameters:
         -----------
             None
-
         Returns:
         -----------
             Nothing
-
         Sets:
         -----------
             self.selected_source
@@ -516,16 +535,30 @@ class MainWindow(QMainWindow):
         Parameters:
         -----------
             None
-
         Returns:
         -----------
             Nothing
-
         Sets:
         -----------
             self.selected_material
         """
         self.selected_material = self.q_combo_material_selector.currentText()
+
+    def boundary_changed(self):
+        """
+        Sets the desired boundary type for the FEM calculation.
+
+        Parameters:
+        -----------
+            None
+        Returns:
+        -----------
+            Nothing
+        Sets:
+        -----------
+            self.boundary_type
+        """
+        self.boundary_type = self.q_combo_boundary_selector.currentText()
 
     def start_fem(self):
         """
@@ -616,17 +649,18 @@ class MainWindow(QMainWindow):
                                                margin=0.25)
             case "Magnetoquasistatic":
                 if self.in_plane_checked:
-                    _, A_z, Bz, _, nodes, tris = demo_maker.make_two_material_demo_magnetic_nedelec(mesh_obj,
-                                                                                            vector_source=source,
-                                                                                            mat_distribution=material)
                     try:
                         _, A_z, Bz, _, nodes, tris = demo_maker.make_two_material_demo_magnetic_nedelec(mesh_obj,
-                                                                                            vector_source=source,
-                                                                                            mat_distribution=material)
+                                                                                    vector_source=source,
+                                                                                    mat_distribution=material,
+                                                                                    boundary_type = self.boundary_type)
                     except:
                         self.line_output.setText("Choose appropriate source term!")
                     else:
                         self.plot_magnetic_flux_density_heatmap(nodes, tris, Bz, self.show_grid_checked)
+                        if self.boundary_type == "Neumann":
+                            self.line_output.setText("Right now, Neumann boundary conditions correspond to a constant "
+                                                     "vector field (0,5).")
                 else:
                     try:
                         _, A_z, Bx, By, _, nodes, tris = demo_maker.make_two_material_demo_magnetic(mesh_obj,
@@ -878,6 +912,7 @@ class MainWindow(QMainWindow):
     def checkbox_in_plane_checked(self, s):
         """
         Selects whether the current in the magnetoquasistatic case is in-plane.
+        This also opens up the opportunity of applying Neumann boundary conditions.
 
         Parameters:
         -----------
@@ -888,12 +923,14 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.in_plane_checked
+            self.in_plane_checked, self.q_combo_boundary_selector.setEnabled
         """
         if s == 0:
             self.in_plane_checked = False
+            self.q_combo_boundary_selector.setEnabled(False)
         else:
             self.in_plane_checked = True
+            self.q_combo_boundary_selector.setEnabled(True)
 
     def checkbox_show_magnet_checked(self, s):
         """
@@ -914,6 +951,20 @@ class MainWindow(QMainWindow):
             self.show_magnet_checked = False
         else:
             self.show_magnet_checked = True
+
+    def on_click_line_edit(self):
+        """
+        Starts the FEM simulation at the press of the enter key when in the respective LineEdit field by calling
+        self.start_fem().
+
+        Parameters:
+        -----------
+            None
+        Returns:
+        -----------
+            Nothing
+        """
+        self.start_fem()
 
     def plot_electric_potential_and_field(self, nodes, tris, phi, Ex, Ey, show_mesh, plot_potential):
         triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
