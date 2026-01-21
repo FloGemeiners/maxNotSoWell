@@ -7,7 +7,7 @@ Usage:
     python3 main.py or hit the play button
 
 Author:
-    Florian Meiners - November 5, 2025; Last updated January 20, 2026
+    Florian Meiners - November 5, 2025; Last updated January 21, 2026
 """
 import sys
 from abc import abstractmethod
@@ -15,7 +15,7 @@ from abc import abstractmethod
 from PyQt6.QtCore import *
 import PyQt6.QtGui as QtGui
 from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLineEdit,
-                             QMainWindow, QPushButton, QVBoxLayout, QWidget, QGridLayout)
+                             QMainWindow, QPushButton, QVBoxLayout, QWidget, QGridLayout, QFileDialog)
 
 import matplotlib
 matplotlib.rcParams.update({"text.usetex": True, "font.family": "Helvetica"})
@@ -23,6 +23,7 @@ matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import matplotlib.tri as mtri
+import pickle
 
 import demo_functions
 from mesh_class import *
@@ -94,6 +95,8 @@ class MainWindow(QMainWindow):
             additional window to plot the potential in
         q_combo_scenario_selector: QComboBox
             drop-down menu to select scenario (Electrostatic or Magneto(quasi)static)
+        directory_selector_button: QPushButton
+            opens file dialog to select directory for streaming pickle file
         checkbox_show_grid: QCheckBox
             checkbox to select whether to plot the triangulation in the FEM solution
         checkbox_plot_potential: QCheckBox
@@ -139,6 +142,9 @@ class MainWindow(QMainWindow):
             information about the type of boundary conditions
         line_output: QLineEdit
             line to give information to the user (for example when the input values aren't feasible)
+        simulate_new: Boolean
+            whether to run the FEM simulation anew
+            (automatically set to True whenever a parameter or the scenario is changed)
 
     Methods:
     -----------
@@ -165,6 +171,8 @@ class MainWindow(QMainWindow):
             decides whether the shape of the permanent magnet should be shown in the magnetostatic case
         on_click_line_edit(self):
             runs the simulation at the press of the enter key
+        call_directory_selector(self):
+            opens a file selection dialog for the selection of the location of pickled simulation data
         plot_electric_potential_and_field(self, nodes, tris, phi, Ex, Ey, show_mesh, plot_potential):
                                         triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
             plots the electric field and potential (if desired); the electric field is displayed in the main window,
@@ -218,12 +226,16 @@ class MainWindow(QMainWindow):
         self.q_combo_boundary_selector.setFixedWidth(200)
         self.q_combo_boundary_selector.setEnabled(False)
 
+        # directory selection for Pickle stream
+        self.directory_selector_button = QPushButton("Select directory")
+
         # layout for general selection (scenario and options)
         layout_scenario = QGridLayout()
         layout_scenario.addWidget(QLabel("Scenario:"), 0, 0)
         layout_scenario.addWidget(self.q_combo_scenario_selector, 1, 0)
         layout_scenario.addWidget(QLabel("Boundary Conditions:"), 2, 0)
         layout_scenario.addWidget(self.q_combo_boundary_selector, 3, 0)
+        layout_scenario.addWidget(self.directory_selector_button, 4, 0)
 
         layout_scenario.addWidget(dummy_placeholder_h, 1, 1)
         layout_scenario.addWidget(QLabel("Options:"), 0, 2)
@@ -397,10 +409,15 @@ class MainWindow(QMainWindow):
         self.checkbox_in_plane.stateChanged.connect(self.checkbox_in_plane_checked)
         self.checkbox_show_grid.stateChanged.connect(self.checkbox_show_grid_checked)
         self.checkbox_show_magnet.stateChanged.connect(self.checkbox_show_magnet_checked)
+        self.simulate_new = True
+
+        # select directory for pickle
+        self.selected_directory = '/Users/florianmeiners/PycharmProjects'
+        self.directory_selector_button.clicked.connect(self.call_directory_selector)
 
         # dummy plot
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
-        self.sc.axes.plot([0, 1, 2, 3, 4], [10, 1, 20, 3, 40])
+        self.sc.axes.plot([0, 1, 2, 3, 4], np.random.rand(5,1))
         self.sc.axes.set_title("This could be your FEM simulation!")
 
         layout_top_level.addWidget(self.sc)
@@ -431,10 +448,11 @@ class MainWindow(QMainWindow):
             self.checkbox_plot_potential.setEnabled, self.checkbox_in_plane.setEnabled, self.eps_label.setEnabled,
             self.mu_label.setEnabled, self.eps_i_line_edit.setEnabled, self.mu_i_line_edit.setEnabled (i = 1, ..., 4),
             self.rho_label.setEnabled, self.rho_line_edit.setEnabled, self.j_label.setEnabled, self.j_line_edit.setEnabled,
-            self.B_label.setEnabled, self.B_line_edit.setEnabled, self.q_combo_boundary_selector.setEnabled
+            self.B_label.setEnabled, self.B_line_edit.setEnabled, self.q_combo_boundary_selector.setEnabled, self.simulate_new
         """
         self.selected_scenario = self.q_combo_scenario_selector.currentText()
         if self.selected_scenario == "Electrostatic":
+            self.simulate_new = True
             self.checkbox_plot_potential.setEnabled(True)
             self.checkbox_in_plane.setEnabled(False)
             self.checkbox_show_magnet.setEnabled(False)
@@ -460,6 +478,7 @@ class MainWindow(QMainWindow):
             self.B_line_edit.setEnabled(False)
 
         elif self.selected_scenario == "Magnetostatic":
+            self.simulate_new = True
             self.checkbox_plot_potential.setEnabled(False)
             self.checkbox_in_plane.setEnabled(False)
             self.checkbox_show_magnet.setEnabled(True)
@@ -485,13 +504,10 @@ class MainWindow(QMainWindow):
             self.B_line_edit.setEnabled(True)
 
         elif self.selected_scenario == "Magnetoquasistatic":
+            self.simulate_new = True
             self.checkbox_plot_potential.setEnabled(False)
             self.checkbox_in_plane.setEnabled(True)
             self.checkbox_show_magnet.setEnabled(False)
-            # if self.in_plane_checked:
-            #     self.q_combo_boundary_selector.setEnabled(True)
-            # else:
-            #     self.q_combo_boundary_selector.setEnabled(False)
 
             self.eps_label.setEnabled(False)
             self.eps_1_line_edit.setEnabled(False)
@@ -524,8 +540,9 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.selected_source
+            self.selected_source, self.simulate_new
         """
+        self.simulate_new = True
         self.selected_source = self.q_combo_source_selector.currentText()
 
     def material_changed(self):
@@ -540,8 +557,9 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.selected_material
+            self.selected_material, self.simulate_new
         """
+        self.simulate_new = True
         self.selected_material = self.q_combo_material_selector.currentText()
 
     def boundary_changed(self):
@@ -556,8 +574,9 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.boundary_type
+            self.boundary_type, self.simulate_new
         """
+        self.simulate_new = True
         self.boundary_type = self.q_combo_boundary_selector.currentText()
 
     def start_fem(self):
@@ -572,6 +591,9 @@ class MainWindow(QMainWindow):
         Returns:
         -----------
             Nothing
+        Sets:
+        -----------
+            self.simulate_new
         """
         mesh_obj = Mesh2DRect(0.0, 2.0, 0.0, 1.0, nx=181, ny=91)
         # TODO: make it possible to pass parameter values from the user interface here!
@@ -622,54 +644,143 @@ class MainWindow(QMainWindow):
         # scenario selection
         match self.selected_scenario:
             case "Electrostatic":
-                try:
-                    _, phi, Ex, Ey, _, nodes, tris = demo_maker.make_two_material_demo(mesh=mesh_obj,
-                                                                                       charge_function=source,
-                                                                                       mat_distribution=material)
-                except:
-                    self.line_output.setText("Choose appropriate source term!")
+                if self.simulate_new:
+                    try:
+                        _, phi, Ex, Ey, _, nodes, tris = demo_maker.make_two_material_demo(mesh=mesh_obj,
+                                                                                           charge_function=source,
+                                                                                           mat_distribution=material)
+                    except:
+                        self.line_output.setText("Choose appropriate source term!")
+                    else:
+                        stream_data = {'Potential': phi, 'Nodes': nodes, 'Triangles': tris,
+                                       'Electric Field x direction': Ex, 'Electric Field y direction': Ey}
+                        try:
+                            # use whatever directory you want
+                            with open(self.selected_directory+'/simulation_stream.pkl', 'wb') as handle:
+                                pickle.dump(stream_data, handle)
+                        except:
+                            self.line_output.setText("Choose existing directory!")
+
+                        self.plot_electric_potential_and_field(nodes=nodes, tris=tris, phi=phi, Ex=Ex, Ey=Ey,
+                                                               show_mesh=self.show_grid_checked,
+                                                               plot_potential=self.potential_checked)
+                        self.simulate_new = False
                 else:
-                    self.plot_electric_potential_and_field(nodes=nodes, tris=tris, phi=phi, Ex=Ex, Ey=Ey,
-                                                           show_mesh=self.show_grid_checked,
-                                                           plot_potential=self.potential_checked)
+                    try:
+                        # use whatever directory you want
+                        with open(self.selected_directory+'/simulation_stream.pkl', 'rb') as handle:
+                            streamed_data = pickle.load(handle)
+                    except:
+                        self.line_output.setText("Choose existing file or run with different parameters!")
+                    else:
+                        nodes, tris, phi = streamed_data['Nodes'], streamed_data['Triangles'], streamed_data['Potential']
+                        Ex, Ey = streamed_data['Electric Field x direction'], streamed_data['Electric Field y direction']
+                        self.plot_electric_potential_and_field(nodes=nodes, tris=tris, phi=phi, Ex=Ex, Ey=Ey,
+                                                               show_mesh=self.show_grid_checked,
+                                                               plot_potential=self.potential_checked)
             case "Magnetostatic":
-                try:
-                    _, A_z, Bx, By, _, nodes, tris = demo_maker.make_two_material_demo_magnetostatic(mesh_obj,
+                if self.simulate_new:
+                    try:
+                        _, A_z, Bx, By, _, nodes, tris = demo_maker.make_two_material_demo_magnetostatic(mesh_obj,
                                                                                             mat_distribution=material,
                                                                                             M_callable=source)
-                except:
-                    self.line_output.setText("Choose appropriate source term!")
+                    except:
+                        self.line_output.setText("Choose appropriate source term!")
+                    else:
+                        stream_data = {'Mag. Pot.': A_z, 'Nodes': nodes, 'Triangles': tris,
+                                       'Mag. Flux x direction': Bx, 'Mag. Flux y direction': By}
+                        try:
+                            # use whatever directory you want
+                            with open(self.selected_directory+'/simulation_stream.pkl', 'wb') as handle:
+                                pickle.dump(stream_data, handle)
+                        except:
+                            self.line_output.setText("Choose existing directory!")
+                        self.plot_magnetic_field(nodes, tris, A_z, Bx, By, self.show_grid_checked)
+                        if self.show_magnet_checked:
+                            # TODO: this is dangerous, all parameters are passed whether the magnet is a horseshoe or not
+                            # TODO: also, the parameters are independent of the source term right now, which makes no sense
+                            self.plot_magnet_shape(center=(1.0, 0.5), half_sizes=(0.2, 0.1), angle_rad=0.0,
+                                                   leg_length=0.35,
+                                                   leg_thickness=0.08, gap=0.10, yoke_thickness=0.08, opening="up",
+                                                   grid_n=600,
+                                                   margin=0.25)
+                        self.simulate_new = False
                 else:
-                    self.plot_magnetic_field(nodes, tris, A_z, Bx, By, self.show_grid_checked)
-                    if self.show_magnet_checked:
-                    # TODO: this is dangerous, all parameters are passed whether the magnet is a horseshoe or not
-                    # TODO: also, the parameters are independent of the source term right now, which makes no sense
-                        self.plot_magnet_shape(center=(1.0, 0.5), half_sizes=(0.2, 0.1), angle_rad=0.0, leg_length=0.35,
-                                               leg_thickness=0.08, gap=0.10, yoke_thickness=0.08, opening="up", grid_n=600,
-                                               margin=0.25)
-            case "Magnetoquasistatic":
-                if self.in_plane_checked:
                     try:
-                        _, A_z, Bz, _, nodes, tris = demo_maker.make_two_material_demo_magnetic_nedelec(mesh_obj,
+                        # use whatever directory you want
+                        with open(self.selected_directory+'/simulation_stream.pkl', 'rb') as handle:
+                            streamed_data = pickle.load(handle)
+                    except:
+                        self.line_output.setText("Choose existing file or run with different parameters!")
+                    else:
+                        nodes, tris, phi = streamed_data['Nodes'], streamed_data['Triangles'], streamed_data['Mag. Pot.']
+                        Bx, By = streamed_data['Mag. Flux x direction'], streamed_data['Mag. Flux y direction']
+                        self.plot_magnetic_field(nodes, tris, phi, Bx, By, self.show_grid_checked)
+                        if self.show_magnet_checked:
+                            self.plot_magnet_shape(center=(1.0, 0.5), half_sizes=(0.2, 0.1), angle_rad=0.0,
+                                                   leg_length=0.35,
+                                                   leg_thickness=0.08, gap=0.10, yoke_thickness=0.08, opening="up",
+                                                   grid_n=600,
+                                                   margin=0.25)
+            case "Magnetoquasistatic":
+                if self.simulate_new:
+                    if self.in_plane_checked:
+                        try:
+                            _, A_z, Bz, _, nodes, tris = demo_maker.make_two_material_demo_magnetic_nedelec(mesh_obj,
                                                                                     vector_source=source,
                                                                                     mat_distribution=material,
-                                                                                    boundary_type = self.boundary_type)
-                    except:
-                        self.line_output.setText("Choose appropriate source term!")
+                                                                                    boundary_type=self.boundary_type)
+                        except:
+                            self.line_output.setText("Choose appropriate source term!")
+                        else:
+                            stream_data = {'Mag. Pot.': Bz, 'Nodes': nodes, 'Triangles': tris}
+                            try:
+                                # use whatever directory you want
+                                with open(self.selected_directory+'/simulation_stream.pkl',
+                                          'wb') as handle:
+                                    pickle.dump(stream_data, handle)
+                            except:
+                                self.line_output.setText("Choose existing directory!")
+
+                            self.plot_magnetic_flux_density_heatmap(nodes, tris, Bz, self.show_grid_checked)
+                            if self.boundary_type == "Neumann":
+                                self.line_output.setText(
+                                    "Right now, Neumann boundary conditions correspond to a constant "
+                                    "vector field (0,5).")
+                            self.simulate_new = False
                     else:
-                        self.plot_magnetic_flux_density_heatmap(nodes, tris, Bz, self.show_grid_checked)
-                        if self.boundary_type == "Neumann":
-                            self.line_output.setText("Right now, Neumann boundary conditions correspond to a constant "
-                                                     "vector field (0,5).")
-                else:
-                    try:
-                        _, A_z, Bx, By, _, nodes, tris = demo_maker.make_two_material_demo_magnetic(mesh_obj,
+                        try:
+                            _, A_z, Bx, By, _, nodes, tris = demo_maker.make_two_material_demo_magnetic(mesh_obj,
                                                                                             current_function=source,
                                                                                             mat_distribution=material)
+                        except:
+                            self.line_output.setText("Choose appropriate source term!")
+                        else:
+                            stream_data = {'Mag. Pot.': A_z, 'Mag. Flux x direction': Bx, 'Mag. Flux y direction': By,
+                                           'Nodes': nodes, 'Triangles': tris}
+                            try:
+                                with open(self.selected_directory+'/simulation_stream.pkl','wb') as handle:
+                                    pickle.dump(stream_data, handle)
+                            except:
+                                self.line_output.setText("Choose existing directory!")
+                            self.plot_magnetic_field(nodes, tris, A_z, Bx, By, self.show_grid_checked)
+                            self.simulate_new = False
+                else:
+                    try:
+                        with open(self.selected_directory+'/simulation_stream.pkl', 'rb') as handle:
+                            streamed_data = pickle.load(handle)
                     except:
-                        self.line_output.setText("Choose appropriate source term!")
+                        self.line_output.setText("Choose existing file or run with different parameters!")
                     else:
-                        self.plot_magnetic_field(nodes, tris, A_z, Bx, By, self.show_grid_checked)
+                        if self.in_plane_checked:
+                            nodes, tris = streamed_data['Nodes'], streamed_data['Triangles']
+                            phi = streamed_data['Mag. Pot.']
+                            self.plot_magnetic_flux_density_heatmap(nodes, tris, phi, self.show_grid_checked)
+                        else:
+                            nodes, tris = streamed_data['Nodes'], streamed_data['Triangles']
+                            phi = streamed_data['Mag. Pot.']
+                            Bx, By = streamed_data['Mag. Flux x direction'], streamed_data['Mag. Flux y direction']
+                            self.plot_magnetic_field(nodes, tris, phi, Bx, By, self.show_grid_checked)
 
     def eps_1_changed(self):
         """
@@ -683,9 +794,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.eps_1_value
+            self.eps_1_value, self.simulate_new
         """
         if self.eps_1_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.eps_1_line_edit.setText(self.eps_1_line_edit.text())
             self.eps_1_value = float(self.eps_1_line_edit.text())
 
@@ -701,9 +813,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.eps_2_value
+            self.eps_2_value, self.simulate_new
         """
         if self.eps_2_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.eps_2_line_edit.setText(self.eps_2_line_edit.text())
             self.eps_2_value = float(self.eps_2_line_edit.text())
 
@@ -719,9 +832,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.eps_3_value
+            self.eps_3_value, self.simulate_new
         """
         if self.eps_3_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.eps_3_line_edit.setText(self.eps_3_line_edit.text())
             self.eps_3_value = float(self.eps_3_line_edit.text())
 
@@ -737,9 +851,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.eps_4_value
+            self.eps_4_value, self.simulate_new
         """
         if self.eps_4_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.eps_4_line_edit.setText(self.eps_4_line_edit.text())
             self.eps_4_value = float(self.eps_4_line_edit.text())
 
@@ -755,9 +870,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.mu_1_value
+            self.mu_1_value, self.simulate_new
         """
         if self.mu_1_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.mu_1_line_edit.setText(self.mu_1_line_edit.text())
             self.mu_1_value = float(self.mu_1_line_edit.text())
 
@@ -773,9 +889,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.mu_2_value
+            self.mu_2_value, self.simulate_new
         """
         if self.mu_2_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.mu_2_line_edit.setText(self.mu_2_line_edit.text())
             self.mu_2_value = float(self.mu_2_line_edit.text())
 
@@ -791,9 +908,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.mu_3_value
+            self.mu_3_value, self.simulate_new
         """
         if self.mu_3_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.mu_3_line_edit.setText(self.mu_3_line_edit.text())
             self.mu_3_value = float(self.mu_3_line_edit.text())
 
@@ -809,7 +927,7 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.mu_4_value
+            self.mu_4_value, self.simulate_new
         """
         if self.mu_4_line_edit.hasAcceptableInput():
             self.mu_4_line_edit.setText(self.mu_4_line_edit.text())
@@ -827,9 +945,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.rho_value
+            self.rho_value, self.simulate_new
         """
         if self.rho_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.rho_line_edit.setText(self.rho_line_edit.text())
             self.rho_value = float(self.rho_line_edit.text())
 
@@ -845,9 +964,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.j_value
+            self.j_value, self.simulate_new
         """
         if self.j_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.j_line_edit.setText(self.j_line_edit.text())
             self.j_value = float(self.j_line_edit.text())
 
@@ -863,9 +983,10 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.B_value
+            self.B_value, self.simulate_new
         """
         if self.B_line_edit.hasAcceptableInput():
+            self.simulate_new = True
             self.B_line_edit.setText(self.B_line_edit.text())
             self.B_value = float(self.B_line_edit.text())
 
@@ -906,6 +1027,8 @@ class MainWindow(QMainWindow):
         """
         if s == 0:
             self.potential_checked = False
+            if self.potential_window is not None:
+                self.potential_window.close()
         else:
             self.potential_checked = True
 
@@ -923,12 +1046,14 @@ class MainWindow(QMainWindow):
             Nothing
         Sets:
         -----------
-            self.in_plane_checked, self.q_combo_boundary_selector.setEnabled
+            self.in_plane_checked, self.q_combo_boundary_selector.setEnabled, self.simulate_new
         """
         if s == 0:
+            self.simulate_new = True
             self.in_plane_checked = False
             self.q_combo_boundary_selector.setEnabled(False)
         else:
+            self.simulate_new = True
             self.in_plane_checked = True
             self.q_combo_boundary_selector.setEnabled(True)
 
@@ -966,8 +1091,28 @@ class MainWindow(QMainWindow):
         """
         self.start_fem()
 
+    def call_directory_selector(self):
+        """
+        Opens a file dialog for streaming directory selection at the press of the respective PushButton. Sets the
+        directory for saving the pickled file.
+
+        Parameters:
+        -----------
+            None
+        Returns:
+        -----------
+            Nothing
+        Sets:
+        -----------
+            self.directory_selected
+        """
+        file_dialog = QFileDialog(self)
+        file_dialog.setWindowTitle("Select Directory")
+        file_dialog.setFileMode(QFileDialog.FileMode.Directory)
+        if file_dialog.exec():
+            self.selected_directory = file_dialog.selectedFiles()[0]
+
     def plot_electric_potential_and_field(self, nodes, tris, phi, Ex, Ey, show_mesh, plot_potential):
-        triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
         """
         Plots the electric field and potential (if needed).
 
@@ -994,6 +1139,7 @@ class MainWindow(QMainWindow):
         -----------
             self.sc
         """
+        triobj = mtri.Triangulation(nodes[:, 0], nodes[:, 1], tris)
         self.sc.axes.cla()
         self.sc.axes.tricontour(triobj, phi, levels=20, linewidths=0.8)
         step = max(1, len(nodes) // 3000)
